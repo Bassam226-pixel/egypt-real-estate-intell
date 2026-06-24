@@ -19,7 +19,7 @@ services:
     env_file: .env
     container_name: notebook
     volumes:
-      - "E:/Self Development/Apache Iceberg/Data Lakehouse using Spark-Minio-Dremio-Nessie/source_data:/home/docker/source_data"
+      - 
 
   nessie:
     image: projectnessie/nessie
