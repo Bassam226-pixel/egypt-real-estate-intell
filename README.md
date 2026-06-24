@@ -83,7 +83,7 @@ Cleaned, typed, and standardized data ready for the gold layer. Key transformati
 - currency_rates: Filtered from 348 currencies to 10 investment-relevant ones (USD, EUR, GBP, JPY, CNY, SAR, AED, EGP, CHF, CAD)
 - spot_prices: Metal uppercased, all price fields rounded to 6 decimal places
 - real_estate_propertyfinder: Area parsed from '165 sqm' to 165.0, price parsed from '5,900,000' to 5900000.0, image/link/redundant columns dropped, amenities array converted to string, deduplication on listing_id
-- real_estate_unified: Final unified real estate table using PropertyFinder only (Bayut data was too sparse for analysis)
+- real_estate_unified: Final unified real estate table using PropertyFinder only 
 
 ### Gold Layer ()
 Business-level aggregations and enriched tables for Power BI, Grafana, and the RAG pipeline.
