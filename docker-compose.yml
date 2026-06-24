@@ -1,0 +1,41 @@
+version: "3.9"
+
+services:
+  dremio2:
+    platform: linux/x86_64
+    image: dremio/dremio-oss:latest
+    ports:
+      - 9047:9047
+      - 31010:31010
+      - 32010:32010
+    container_name: dremio2
+    volumes:
+      - dremio_data:/opt/dremio/data
+
+  spark_notebook:
+    image: alexmerced/spark33-notebook
+    ports:
+      - 8888:8888
+    env_file: .env
+    container_name: notebook
+    volumes:
+      - "E:/Self Development/Apache Iceberg/Data Lakehouse using Spark-Minio-Dremio-Nessie/source_data:/home/docker/source_data"
+
+  nessie:
+    image: projectnessie/nessie
+    container_name: nessie
+    ports:
+      - "19120:19120"
+    volumes:
+      - nessie_data:/nessie/data
+
+volumes:
+  dremio_data:
+    driver: local
+  nessie_data:
+    driver: local
+
+networks:
+  default:
+    name: iceberg_env
+    driver: bridge
