@@ -18,7 +18,7 @@ services:
       - 8888:8888
     env_file: .env
     container_name: notebook
-    volumes:
+    volumes: ## link your source data path with the volume 
       - 
 
   nessie:
