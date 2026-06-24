@@ -177,7 +177,7 @@ Run the notebooks in order:
 ```
 notebooks/01_bronze_layer.ipynb   - Raw ingestion
 notebooks/02_silver_layer.ipynb   - Cleaning and typing
-notebooks/03_gold_layer.ipynb     - Business aggregations (Omar)
+notebooks/03_gold_layer.ipynb     - Business aggregations 
 ```
 
 ---
