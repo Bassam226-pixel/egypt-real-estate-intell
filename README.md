@@ -85,7 +85,7 @@ Cleaned, typed, and standardized data ready for the gold layer. Key transformati
 - real_estate_propertyfinder: Area parsed from '165 sqm' to 165.0, price parsed from '5,900,000' to 5900000.0, image/link/redundant columns dropped, amenities array converted to string, deduplication on listing_id
 - real_estate_unified: Final unified real estate table using PropertyFinder only (Bayut data was too sparse for analysis)
 
-### Gold Layer (built by Omar)
+### Gold Layer ()
 Business-level aggregations and enriched tables for Power BI, Grafana, and the RAG pipeline.
 
 ---
