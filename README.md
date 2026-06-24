@@ -35,15 +35,7 @@ Grafana
 
 ---
 
-## Team Responsibilities
 
-| Member | Role |
-|---|---|
-| Mostafa | Infrastructure, Spark jobs, Bronze and Silver layers, Docker, Airflow DAGs |
-| Bassam | Data scrapers and raw file delivery |
-| Omar | Gold layer schema design, SCD Type 2, Spark gold jobs |
-| Mohammed | RAG pipeline with FAISS and LLM integration |
-| Ali | Dremio, Power BI dashboards, Grafana observability |
 
 ---
 
