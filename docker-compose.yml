@@ -1,41 +1,188 @@
-version: "3.9"
+# docker-compose.yml
+# Egypt Real Estate Intelligence — S3 storage + Jupyter/local-mode Spark + Dremio
+# Core:        docker compose up -d nessie jupyter dremio
+# With RAG:    docker compose --profile rag up -d
+# With app:    docker compose --profile app up -d
+#
+# NOTE: create the S3 bucket in AWS FIRST (e.g. aws s3 mb s3://your-bucket). Compose does not create it.
+
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: Dockerfile.airflow # airflow + java + pyspark (local mode)
+  env_file: .env
+  environment: &airflow-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    PYTHONPATH: /opt/project
+    SPARK_MASTER: "local[*]"
+    NESSIE_URI: http://nessie:19120/api/v2
+    WAREHOUSE: ${WAREHOUSE}
+    AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+    AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+    AWS_REGION: ${AWS_REGION}
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./logs:/opt/airflow/logs
+    - ./plugins:/opt/airflow/plugins
+    - ./spark_jobs:/opt/project/spark_jobs
+    - ./ingestion:/opt/project/ingestion
+    - ./engine:/opt/project/engine
+    - ./data:/opt/project/data
+  user: "${AIRFLOW_UID:-50000}:0"
+  depends_on:
+    postgres:
+      condition: service_healthy
 
 services:
-  dremio2:
-    platform: linux/x86_64
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports: [ "5432:5432" ]
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "airflow" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    ports: [ "6379:6379" ]
+    command: [ "redis-server", "--save", "", "--appendonly", "no" ]
+
+  # ---------- Dedicated Postgres for Nessie's catalog metadata (JDBC2 version store) ----------
+  nessie-postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: nessie
+      POSTGRES_PASSWORD: nessie
+      POSTGRES_DB: nessie
+    volumes:
+      - nessie_pgdata:/var/lib/postgresql/data
+    ports: [ "5433:5432" ]  # host 5433 to avoid clashing with the airflow postgres on 5432
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U nessie" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ---------- Iceberg catalog (versioned). Data lives on S3; Nessie stores pointers only. ----------
+  nessie:
+    image: ghcr.io/projectnessie/nessie:0.99.0
+    ports: [ "19120:19120" ]
+    environment:
+      NESSIE_VERSION_STORE_TYPE: JDBC2
+      NESSIE_VERSION_STORE_PERSIST_JDBC_DATASOURCE: postgresql
+      QUARKUS_DATASOURCE_POSTGRESQL_JDBC_URL: jdbc:postgresql://nessie-postgres:5432/nessie
+      QUARKUS_DATASOURCE_POSTGRESQL_USERNAME: nessie
+      QUARKUS_DATASOURCE_POSTGRESQL_PASSWORD: nessie
+    depends_on:
+      nessie-postgres:
+        condition: service_healthy
+
+  # ---------- Spark via Jupyter (local mode) ----------
+  jupyter:
+    image: quay.io/jupyter/pyspark-notebook:latest
+    environment:
+      JUPYTER_TOKEN: ${JUPYTER_TOKEN:-egypt}
+      SPARK_MASTER: "local[*]"
+      NESSIE_URI: http://nessie:19120/api/v2
+      WAREHOUSE: ${WAREHOUSE}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION}
+      PYTHONPATH: /home/jovyan/work
+    ports: [ "8888:8888" ]
+    volumes:
+      - ./:/home/jovyan/work
+    depends_on: [ nessie ]
+
+  # ---------- Dremio (SQL serving engine; add Nessie source once — see DREMIO_SETUP.md) ----------
+  dremio:
     image: dremio/dremio-oss:latest
     ports:
-      - 9047:9047
-      - 31010:31010
-      - 32010:32010
-    container_name: dremio2
+      - "9047:9047"
+      - "31010:31010"
+      - "32010:32010"
+    environment:
+      DREMIO_MAX_MEMORY_SIZE_MB: "4096"
     volumes:
       - dremio_data:/opt/dremio/data
+    depends_on: [ nessie ]
 
-  spark_notebook:
-    image: alexmerced/spark33-notebook
-    ports:
-      - 8888:8888
-    env_file: .env
-    container_name: notebook
-    volumes: ## link your source data path with the volume 
-      - 
+  # ---------- Airflow ----------
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: >
+      /bin/bash -c " airflow db migrate && airflow users create --username admin --password admin
+        --firstname admin --lastname admin --role Admin --email admin@example.com || true
+      "
+    restart: "no"
 
-  nessie:
-    image: projectnessie/nessie
-    container_name: nessie
-    ports:
-      - "19120:19120"
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    ports: [ "8082:8080" ]
+    depends_on:
+      postgres: { condition: service_healthy }
+      airflow-init: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    depends_on:
+      postgres: { condition: service_healthy }
+      airflow-init: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  # ---------- RAG (optional) ----------
+  chromadb:
+    image: chromadb/chroma:latest
+    profiles: [ "rag" ]
+    ports: [ "8003:8000" ]
+    environment:
+      IS_PERSISTENT: "TRUE"
     volumes:
-      - nessie_data:/nessie/data
+      - chroma_data:/chroma/chroma
+
+  # ---------- Application (optional) ----------
+  api:
+    build: ./api
+    profiles: [ "app" ]
+    env_file: .env
+    environment:
+      NESSIE_URI: http://nessie:19120/api/v2
+      WAREHOUSE: ${WAREHOUSE}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION}
+      REDIS_URL: redis://redis:6379/0
+      CHROMA_URL: http://chromadb:8000
+      DREMIO_FLIGHT_URI: grpc+tcp://dremio:32010
+      DREMIO_USER: ${DREMIO_USER:-admin}
+      DREMIO_PASSWORD: ${DREMIO_PASSWORD:-admin123}
+    ports: [ "8000:8000" ]
+    depends_on: [ nessie, redis, dremio ]
+
+  frontend:
+    build: ./frontend
+    profiles: [ "app" ]
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports: [ "3000:3000" ]
+    depends_on: [ api ]
 
 volumes:
+  postgres_data:
+  nessie_pgdata:
+  chroma_data:
   dremio_data:
-    driver: local
-  nessie_data:
-    driver: local
-
-networks:
-  default:
-    name: iceberg_env
-    driver: bridge
