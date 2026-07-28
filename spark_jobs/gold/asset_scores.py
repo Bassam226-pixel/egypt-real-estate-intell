@@ -7,8 +7,7 @@ from pyspark.sql.window import Window
 from spark_jobs.common import io
 from spark_jobs.common.nessie import ensure_namespaces
 from spark_jobs.common.spark_session import get_spark_session
-from spark_jobs.gold.gold_metal_roi import daily_metal_prices, gold_metal_roi
-from spark_jobs.gold.re_district_metrics import re_district_metrics
+from spark_jobs.gold.gold_metal_roi import daily_metal_prices
 
 VOL_WINDOW_DAYS = 90
 ANNUALIZED_VOL_FACTOR = 252 ** 0.5
@@ -65,7 +64,9 @@ def _real_estate_row(spark: SparkSession) -> DataFrame:
         (F.stddev("price_per_sqm_egp") / F.avg("price_per_sqm_egp")).alias("cv"),
         F.max(F.to_date("scraped_at")).alias("as_of_date"),
     ).first()
-    yield_avg = re_district_metrics(spark).agg(F.avg("gross_yield_pct").alias("y")).first()["y"]
+    yield_avg = io.read_table(spark, "gold", "re_district_metrics").agg(
+        F.avg("gross_yield_pct").alias("y")
+    ).first()["y"]
     return spark.createDataFrame(
         [(
             "real_estate", yield_avg, "avg_district_gross_rental_yield_pct",
@@ -82,8 +83,13 @@ def asset_scores(spark: SparkSession) -> DataFrame:
     # cross-sectional dispersion of price/m2 as its "risk" -- the closest available
     # proxies, not the same statistic as the other rows. Hence the *_label columns
     # spelling out what each row's numbers actually mean.
+    #
+    # ROI and district-yield are read from the already-published gold tables rather
+    # than recomputed via function import: this job runs after both in the DAG anyway,
+    # and re-deriving them here doubled the S3 traffic (silver.metals scanned twice,
+    # re_district_metrics re-aggregated from scratch) for no benefit.
     daily = daily_metal_prices(spark).filter(F.col("metal").isin("gold", "silver"))
-    roi = gold_metal_roi(spark)
+    roi = io.read_table(spark, "gold", "gold_metal_roi")
 
     rows = [
         _stocks_row(spark),
@@ -91,7 +97,12 @@ def asset_scores(spark: SparkSession) -> DataFrame:
         _metal_row(spark, "silver", daily, roi),
         _real_estate_row(spark),
     ]
-    return reduce(DataFrame.unionByName, rows)
+    # Each row above is its own single-row DataFrame at Spark's default parallelism,
+    # so the union lands in defaultParallelism-times-4 mostly-empty partitions (e.g.
+    # 32 for 4 rows at parallelism 8). Writing that many partitions for a 4-row table
+    # fires off a burst of near-simultaneous S3 connections during the Iceberg commit,
+    # which was intermittently overwhelming the container's DNS resolver.
+    return reduce(DataFrame.unionByName, rows).coalesce(1)
 
 
 def run() -> None:
