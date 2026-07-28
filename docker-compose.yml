@@ -90,7 +90,10 @@ services:
 
   # ---------- Spark via Jupyter (local mode) ----------
   jupyter:
-    image: quay.io/jupyter/pyspark-notebook:latest
+    # Pinned (not :latest): :latest currently resolves to Spark 4.1.2, for which
+    # Nessie has no released nessie-spark-extensions build (max is Spark 3.5 as of
+    # nessie-spark-extensions-3.5_2.12:0.108.3 / iceberg-spark-runtime-3.5_2.12:1.11.0).
+    image: quay.io/jupyter/pyspark-notebook:spark-3.5.3
     environment:
       JUPYTER_TOKEN: ${JUPYTER_TOKEN:-egypt}
       SPARK_MASTER: "local[*]"
@@ -99,7 +102,8 @@ services:
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_REGION: ${AWS_REGION}
-      PYTHONPATH: /home/jovyan/work
+      # Base image exposes pyspark via PYTHONPATH (not pip-installed) - must append, not replace.
+      PYTHONPATH: /usr/local/spark/python:/usr/local/spark/python/lib/py4j-0.10.9.7-src.zip:/home/jovyan/work
     ports: [ "8888:8888" ]
     volumes:
       - ./:/home/jovyan/work
