@@ -1,0 +1,312 @@
+{
+  "id": null,
+  "uid": "portfolio",
+  "title": "Portfolio Dashboard",
+  "tags": ["portfolio", "cross-asset", "risk", "performance"],
+  "timezone": "Africa/Cairo",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "schemaVersion": 39,
+  "style": "dark",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "Africa/Cairo",
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "Asset Class Comparison",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+      "id": 1,
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": false },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+          "rawSql": "SELECT asset_class, round((roi_proxy * 100)::numeric, 2) as \"ROI %\" FROM gold.asset_scores WHERE roi_proxy IS NOT NULL",
+          "format": "table"
+        }
+      ],
+      "title": "Asset Class ROI",
+      "type": "barchart"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+      "id": 2,
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": false },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+          "rawSql": "SELECT asset_class, round((vol_proxy * 100)::numeric, 2) as \"Volatility %\" FROM gold.asset_scores WHERE vol_proxy IS NOT NULL",
+          "format": "table"
+        }
+      ],
+      "title": "Asset Class Volatility",
+      "type": "barchart"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "id": 101,
+      "title": "Risk vs Return",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "align": "auto", "filterable": false, "inspect": false },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 10 },
+      "id": 3,
+      "options": { "showHeader": true, "sortBy": [] },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+          "rawSql": "SELECT asset_class as \"Asset Class\", round((roi_proxy * 100)::numeric, 2) as \"Return %\", round((vol_proxy * 100)::numeric, 2) as \"Volatility %\" FROM gold.asset_scores WHERE roi_proxy IS NOT NULL AND vol_proxy IS NOT NULL",
+          "format": "table"
+        }
+      ],
+      "title": "Risk-Return",
+      "type": "table",
+      "transformations": []
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "align": "auto", "filterable": false, "inspect": false },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 10 },
+      "id": 4,
+      "options": { "showHeader": true, "sortBy": [] },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+          "rawSql": "SELECT asset_class as \"Asset Class\", roi_proxy_label as \"ROI Metric\", round((roi_proxy * 100)::numeric, 2) as \"ROI %\", vol_proxy_label as \"Volatility Metric\", round((vol_proxy * 100)::numeric, 2) as \"Volatility %\", as_of_date as \"As Of\" FROM gold.asset_scores",
+          "format": "table"
+        }
+      ],
+      "title": "Asset Class Details",
+      "type": "table",
+      "transformations": []
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 20 },
+      "id": 102,
+      "title": "Stock Momentum Leaders",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 21 },
+      "id": 5,
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": false },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+          "rawSql": "SELECT symbol, round((momentum_3m * 100)::numeric, 2) as \"Momentum %\" FROM gold.stock_returns_vol WHERE trade_date = (SELECT MAX(trade_date) FROM gold.stock_returns_vol WHERE momentum_3m IS NOT NULL) AND momentum_3m IS NOT NULL ORDER BY momentum_3m DESC LIMIT 10",
+          "format": "table"
+        }
+      ],
+      "title": "Top Momentum Stocks",
+      "type": "barchart"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 21 },
+      "id": 6,
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": false },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+          "rawSql": "SELECT symbol, round((momentum_3m * 100)::numeric, 2) as \"Momentum %\" FROM gold.stock_returns_vol WHERE trade_date = (SELECT MAX(trade_date) FROM gold.stock_returns_vol WHERE momentum_3m IS NOT NULL) AND momentum_3m IS NOT NULL ORDER BY momentum_3m ASC LIMIT 10",
+          "format": "table"
+        }
+      ],
+      "title": "Lowest Momentum Stocks",
+      "type": "barchart"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 29 },
+      "id": 103,
+      "title": "Market Snapshot",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "align": "auto", "filterable": false, "inspect": false },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 30 },
+      "id": 7,
+      "options": { "showHeader": true, "sortBy": [] },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+          "rawSql": "SELECT symbol, metric, round(value::numeric, 2) as value, unit FROM gold.market_snapshot ORDER BY category, symbol",
+          "format": "table"
+        }
+      ],
+      "title": "Market Indices & Benchmarks",
+      "type": "table",
+      "transformations": []
+    }
+  ],
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "refresh": "",
+  "schemaVersion": 39,
+  "version": 1
+}

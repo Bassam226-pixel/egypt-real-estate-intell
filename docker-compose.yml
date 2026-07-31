@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   dremio2:
     platform: linux/x86_64
@@ -13,13 +11,21 @@ services:
       - dremio_data:/opt/dremio/data
 
   spark_notebook:
-    image: alexmerced/spark33-notebook
+    image: quay.io/jupyter/pyspark-notebook:spark-3.5.3
     ports:
       - 8888:8888
     env_file: .env
     container_name: notebook
-    volumes: ## link your source data path with the volume 
-      - 
+    environment:
+      - AWS_REGION=${AWS_REGION}
+      - WAREHOUSE=${WAREHOUSE}
+      - NESSIE_URI=${NESSIE_URI}
+      - JUPYTER_TOKEN=${JUPYTER_TOKEN}
+      - PYTHONPATH=/opt/project
+    volumes:
+      - ./:/opt/project
+    depends_on:
+      - nessie
 
   nessie:
     image: projectnessie/nessie
@@ -29,10 +35,93 @@ services:
     volumes:
       - nessie_data:/nessie/data
 
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: investment_analytics
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    mem_limit: 256m
+    cpus: 0.25
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.2.0-ubuntu
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_SERVE_FROM_SUB_PATH=false
+      - GF_RENDERING_ENABLED=true
+      - GF_RENDERING_SERVER_URL=http://grafana-image-renderer:8081/render
+      - GF_RENDERING_CALLBACK_URL=http://grafana:3000/
+      - GF_LOG_LEVEL=warn
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/home.json
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - ./grafana/plugins:/var/lib/grafana/plugins
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 0.5
+
+  exporter:
+    image: quay.io/jupyter/pyspark-notebook:spark-3.5.3
+    container_name: exporter
+    working_dir: /opt/project
+    volumes:
+      - ./:/opt/project
+    depends_on:
+      - postgres
+      - nessie
+    env_file: .env
+    environment:
+      - AWS_REGION=${AWS_REGION}
+      - WAREHOUSE=${WAREHOUSE}
+      - NESSIE_URI=${NESSIE_URI}
+      - PYTHONPATH=/opt/project
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=investment_analytics
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin123
+    command: >
+      sh -c "pip install --quiet psycopg2-binary boto3 &&
+             python /opt/project/scripts/export_to_postgres.py"
+    profiles:
+      - export
+
+  grafana-image-renderer:
+    image: grafana/grafana-image-renderer:latest
+    container_name: grafana-image-renderer
+    environment:
+      - HTTP_PORT=8081
+      - HTTP_ADDR=0.0.0.0
+      - LOG_LEVEL=warn
+    mem_limit: 256m
+    cpus: 0.25
+    restart: unless-stopped
+
 volumes:
   dremio_data:
     driver: local
   nessie_data:
+    driver: local
+  grafana_data:
+    driver: local
+  postgres_data:
     driver: local
 
 networks:

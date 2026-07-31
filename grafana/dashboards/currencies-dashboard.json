@@ -1,0 +1,283 @@
+{
+  "uid": "currencies",
+  "title": "Currencies Dashboard",
+  "tags": ["currencies", "fx", "exchange-rates", "egypt"],
+  "timezone": "Africa/Cairo",
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1h",
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "Exchange Rates",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] },
+          "unit": "currencyEGP"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "id": 1,
+      "title": "EGP/USD Rate",
+      "type": "stat",
+      "targets": [
+        {
+          "rawSql": "SELECT units_per_usd as \"EGP per USD\" FROM silver.fx_rates WHERE currency = 'USD' ORDER BY date DESC LIMIT 1",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] },
+          "unit": "currencyEGP"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "id": 2,
+      "title": "EGP/EUR Rate",
+      "type": "stat",
+      "targets": [
+        {
+          "rawSql": "SELECT units_per_usd as \"EGP per EUR\" FROM silver.fx_rates WHERE currency = 'EUR' ORDER BY date DESC LIMIT 1",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] },
+          "unit": "currencyEGP"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "id": 3,
+      "title": "EGP/GBP Rate",
+      "type": "stat",
+      "targets": [
+        {
+          "rawSql": "SELECT units_per_usd as \"EGP per GBP\" FROM silver.fx_rates WHERE currency = 'GBP' ORDER BY date DESC LIMIT 1",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] },
+          "unit": "currencyEGP"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "id": 4,
+      "title": "EGP/JPY Rate",
+      "type": "stat",
+      "targets": [
+        {
+          "rawSql": "SELECT units_per_usd as \"EGP per JPY\" FROM silver.fx_rates WHERE currency = 'JPY' ORDER BY date DESC LIMIT 1",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "id": 101,
+      "title": "Historical Trends",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "EGP per Unit",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "currencyEGP"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 6 },
+      "id": 5,
+      "title": "Exchange Rate Trends",
+      "type": "timeseries",
+      "targets": [
+        {
+          "rawSql": "SELECT CAST(date AS TIMESTAMP) as time, units_per_usd as \"EGP per USD\" FROM silver.fx_rates WHERE currency = 'USD' ORDER BY time",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "EGP per Unit",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "currencyEGP"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 16 },
+      "id": 6,
+      "title": "Multi-Currency Comparison",
+      "type": "timeseries",
+      "targets": [
+        {
+          "rawSql": "SELECT CAST(date AS TIMESTAMP) as time, units_per_usd, currency FROM silver.fx_rates WHERE currency IN ('EUR', 'GBP', 'JPY') ORDER BY time",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
+      "id": 102,
+      "title": "All Currency Rates",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "align": "auto", "filterable": false, "inspect": false },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": { "showHeader": true, "sortBy": [] },
+      "transformations": [],
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 27 },
+      "id": 7,
+      "title": "Currency Rate Table",
+      "type": "table",
+      "targets": [
+        {
+          "rawSql": "SELECT currency, units_per_usd as \"EGP per Unit\", rate as \"USD per Unit\" FROM silver.fx_rates WHERE date = (SELECT MAX(date) FROM silver.fx_rates) ORDER BY currency",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

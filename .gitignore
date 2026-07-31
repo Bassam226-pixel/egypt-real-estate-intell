@@ -216,3 +216,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Data directories (too large for git)
+data/
+raw data/
+
+# Grafana plugins (binaries)
+grafana/plugins/

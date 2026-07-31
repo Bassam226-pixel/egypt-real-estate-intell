@@ -1,0 +1,407 @@
+{
+  "uid": "real-estate",
+  "title": "Real Estate Dashboard",
+  "tags": ["real-estate", "property", "egypt"],
+  "timezone": "Africa/Cairo",
+  "editable": true,
+  "refresh": "30s",
+  "time": { "from": "now-30d", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Market Overview",
+      "id": 100,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 1,
+      "title": "Total Listings",
+      "type": "stat",
+      "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT count(*) as \"Total Listings\" FROM silver.re_sales;",
+          "format": "table",
+          "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 2,
+      "title": "Average Price/Sqm",
+      "type": "stat",
+      "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT round(avg(price_per_sqm_egp)::numeric, 0) as \"Avg Price/Sqm (EGP)\" FROM silver.re_sales WHERE price_per_sqm_egp > 0;",
+          "format": "table",
+          "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 3,
+      "title": "Median Price/Sqm",
+      "type": "stat",
+      "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT round(avg(median_price_per_sqm_egp)::numeric, 0) as \"Median Price/Sqm (EGP)\" FROM gold.re_sale_metrics;",
+          "format": "table",
+          "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 4,
+      "title": "Districts Covered",
+      "type": "stat",
+      "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT count(DISTINCT district) as \"Districts\" FROM gold.re_sale_metrics;",
+          "format": "table",
+          "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      }
+    },
+    {
+      "type": "row",
+      "title": "Location Analysis",
+      "id": 101,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 5,
+      "title": "Price per Sqm by District",
+      "type": "barchart",
+      "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 6 },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT district, round(avg_price_per_sqm_egp::numeric, 0) as \"Avg Price/Sqm (EGP)\" FROM gold.re_sale_metrics ORDER BY avg_price_per_sqm_egp DESC LIMIT 15;",
+          "format": "table",
+          "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": false },
+        "tooltip": { "mode": "single", "sort": "none" }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Listing Count by District",
+      "type": "barchart",
+      "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 6 },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT district, listing_count as \"Listings\" FROM gold.re_sale_metrics ORDER BY listing_count DESC LIMIT 15;",
+          "format": "table",
+          "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": false },
+        "tooltip": { "mode": "single", "sort": "none" }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Property Analysis",
+      "id": 102,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 7,
+      "title": "Property Type Distribution",
+      "type": "piechart",
+      "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 17 },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT property_type, count(*) as \"Count\" FROM silver.re_sales WHERE property_type IS NOT NULL GROUP BY property_type ORDER BY count(*) DESC;",
+          "format": "table",
+          "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {},
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] },
+        "pieType": "donut",
+        "tooltip": { "mode": "single", "sort": "none" }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Bedroom Distribution",
+      "type": "barchart",
+      "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 17 },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT cast(bedrooms as text) as \"Bedrooms\", count(*) as \"Count\" FROM silver.re_sales WHERE bedrooms IS NOT NULL GROUP BY bedrooms ORDER BY bedrooms;",
+          "format": "table",
+          "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": false },
+        "tooltip": { "mode": "single", "sort": "none" }
+      }
+    },
+    {
+      "id": 9,
+      "title": "Governorate Distribution",
+      "type": "piechart",
+      "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 17 },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT governorate, count(*) as \"Count\" FROM silver.re_sales WHERE governorate IS NOT NULL GROUP BY governorate ORDER BY count(*) DESC;",
+          "format": "table",
+          "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {},
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] },
+        "pieType": "donut",
+        "tooltip": { "mode": "single", "sort": "none" }
+      }
+    },
+    {
+      "type": "row",
+      "title": "District Details",
+      "id": 103,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 10,
+      "title": "District Metrics",
+      "type": "table",
+      "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 26 },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT district, listing_count as \"Listings\", round(avg_price_per_sqm_egp::numeric, 0) as \"Avg Price/Sqm\", round(median_price_per_sqm_egp::numeric, 0) as \"Median Price/Sqm\", round(avg_area_sqm::numeric, 0) as \"Avg Area (sqm)\" FROM gold.re_sale_metrics ORDER BY avg_price_per_sqm_egp DESC;",
+          "format": "table",
+          "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": {
+            "align": "auto",
+            "cellOptions": { "type": "auto" },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": { "show": false, "reducer": ["sum"], "countRows": false, "fields": "" }
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "version": 1
+}
