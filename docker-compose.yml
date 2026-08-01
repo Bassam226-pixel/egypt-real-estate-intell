@@ -52,7 +52,7 @@ services:
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:10.2.0-ubuntu
+    image: grafana/grafana:12.4.2-ubuntu
     container_name: grafana
     ports:
       - "3000:3000"
@@ -73,6 +73,7 @@ services:
       - ./grafana/plugins:/var/lib/grafana/plugins
     depends_on:
       - postgres
+      - grafana-image-renderer
     restart: unless-stopped
     mem_limit: 512m
     cpus: 0.5
@@ -110,8 +111,8 @@ services:
       - HTTP_PORT=8081
       - HTTP_ADDR=0.0.0.0
       - LOG_LEVEL=warn
-    mem_limit: 256m
-    cpus: 0.25
+    mem_limit: 2g
+    cpus: 1.0
     restart: unless-stopped
 
 volumes:
