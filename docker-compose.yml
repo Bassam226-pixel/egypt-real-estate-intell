@@ -185,6 +185,22 @@ services:
     ports: [ "3000:3000" ]
     depends_on: [ api ]
 
+  streamlit:
+    build: ./app
+    profiles: [ "app" ]
+    env_file: .env
+    environment:
+      DREMIO_HOST: dremio
+      DREMIO_REST_PORT: "9047"
+      DREMIO_USER: ${DREMIO_USER:-admin}
+      DREMIO_PASSWORD: ${DREMIO_PASSWORD:-admin123}
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY}
+      NVIDIA_BASE_URL: https://integrate.api.nvidia.com/v1
+      CHROMA_URL: http://chromadb:8000
+    ports: [ "8501:8501" ]
+    depends_on: [ dremio ]
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   nessie_pgdata:
