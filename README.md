@@ -28,6 +28,9 @@ Raw investment data from multiple Egyptian market sources is ingested into a **M
 ## Architecture
 
 ```
+<img width="1408" height="768" alt="Gemini_Generated_Image_1eae0q1eae0q1eae" src="https://github.com/user-attachments/assets/090337fa-43f5-4f8e-97de-b6bed611a899" />
+
+
 Raw Source Files (CSV, JSON)
          │
          ▼
