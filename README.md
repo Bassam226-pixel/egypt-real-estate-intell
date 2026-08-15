@@ -26,6 +26,7 @@ Raw investment data from multiple Egyptian market sources is ingested into a **M
 ---
 
 ## Architecture
+<img width="1774" height="887" alt="EG balance" src="https://github.com/user-attachments/assets/a3d5a952-c1bd-4745-b271-ef73286de620" />
 
 ```
 
@@ -56,7 +57,6 @@ Raw Source Files (CSV, JSON)
 **Query Engine:** Dremio — SQL interface for Power BI and Grafana  
 
 ---
-<img width="1408" height="768" alt="Gemini_Generated_Image_1eae0q1eae0q1eae" src="https://github.com/user-attachments/assets/090337fa-43f5-4f8e-97de-b6bed611a899" />
 
 ## Tech Stack
 
