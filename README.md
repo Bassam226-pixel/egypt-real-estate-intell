@@ -1,4 +1,5 @@
 # Egyptian Investment Lakehouse
+<img width="1774" height="887" alt="EG balance" src="https://github.com/user-attachments/assets/89e947d3-811a-4ec0-bca7-03349f5cdf0e" />
 
 A personal data lakehouse built on **Apache Iceberg**, **Project Nessie**, **Apache Spark**, and **AWS S3** — designed to ingest, clean, and serve Egyptian investment data across equities, commodities, currencies, and real estate.
 
