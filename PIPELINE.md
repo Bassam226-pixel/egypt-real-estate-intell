@@ -221,3 +221,110 @@ Spark SQL's `stack()` function, rather than one sparse, null-filled row per date
 3. **`stock_scores.py`** liquidity: not a code bug so much as a wrong data source —
    see `stock_scores.py` above (`stock_eod.volume` is always 0; switched to
    `stock_quotes.volume`).
+
+---
+
+## Running the Pipeline End-to-End
+
+### 1. Start all services
+
+```bash
+docker compose up -d
+```
+
+### 2. Upload raw data to S3
+
+```bash
+docker compose exec jupyter python -m ingestion.loaders.load_stocks
+docker compose exec jupyter python -m ingestion.loaders.load_egx_index
+docker compose exec jupyter python -m ingestion.loaders.load_metals
+docker compose exec jupyter python -m ingestion.loaders.load_fx
+docker compose exec jupyter python -m ingestion.loaders.load_re_sales
+docker compose exec jupyter python -m ingestion.loaders.load_re_rentals
+```
+
+### 3. Run Silver jobs
+
+```bash
+docker compose exec jupyter python -m spark_jobs.silver.clean_stocks_eod
+docker compose exec jupyter python -m spark_jobs.silver.clean_fx
+docker compose exec jupyter python -m spark_jobs.silver.clean_metals
+docker compose exec jupyter python -m spark_jobs.silver.clean_fundamentals
+docker compose exec jupyter python -m spark_jobs.silver.clean_re_sales
+docker compose exec jupyter python -m spark_jobs.silver.clean_re_rentals
+```
+
+### 4. Run Gold jobs
+
+```bash
+docker compose exec jupyter python -m spark_jobs.gold.stock_returns_vol
+docker compose exec jupyter python -m spark_jobs.gold.stock_scores
+docker compose exec jupyter python -m spark_jobs.gold.gold_metal_roi
+docker compose exec jupyter python -m spark_jobs.gold.re_sale_metrics
+docker compose exec jupyter python -m spark_jobs.gold.re_district_metrics
+docker compose exec jupyter python -m spark_jobs.gold.asset_scores
+docker compose exec jupyter python -m spark_jobs.gold.market_snapshot
+```
+
+### 5. Export to PostgreSQL (Grafana backend)
+
+```bash
+docker compose --profile export run --rm exporter
+```
+
+This writes Gold/Silver tables to the `postgres-grafana` service (a separate Postgres
+instance from Airflow's metadata DB — see `docker-compose.yml`), which Grafana reads from.
+
+### 6. Open Grafana
+
+- URL: http://localhost:3000
+- Login: `admin` / `admin`
+
+## Services Reference
+
+| Service | Port | Purpose |
+|---|---|---|
+| `nessie` | 19120 | Iceberg catalog (Nessie) |
+| `jupyter` | 8888 | PySpark + Jupyter (runs pipeline jobs interactively) |
+| `dremio` | 9047 | SQL query layer over Iceberg/S3 — see `DREMIO_SETUP.md` |
+| `postgres` | 5432 | Airflow metadata DB |
+| `postgres-grafana` | 5433 (host) / 5432 (internal) | Grafana's analytics backend |
+| `grafana` | 3000 | Dashboard UI |
+| `grafana-image-renderer` | - | Dashboard screenshot rendering |
+| `airflow-webserver` | 8082 | Airflow UI |
+
+## Reference Table Row Counts (from an initial full run)
+
+### Silver Layer
+
+| Table | Rows | Description |
+|---|---|---|
+| `silver.stock_eod` | 1,230 | Daily OHLCV for EGX stocks |
+| `silver.fundamentals` | 10 | Company fundamentals |
+| `silver.stock_quotes` | 10 | Live stock quotes |
+| `silver.egx30_index` | 123 | EGX30 index history |
+| `silver.metals` | 80,628 | Gold/silver prices (history + spot) |
+| `silver.fx_rates` | 9 | Currency exchange rates |
+| `silver.re_sales` | 2,350 | Real estate sale listings |
+| `silver.re_rentals` | varies | Real estate rental listings |
+
+### Gold Layer
+
+| Table | Rows | Description |
+|---|---|---|
+| `gold.stock_returns_vol` | 1,230 | Returns, momentum, volatility |
+| `gold.stock_scores` | 10 | Composite stock scores |
+| `gold.gold_metal_roi` | 2 | Metal ROI at 1/3/5/10yr horizons |
+| `gold.re_sale_metrics` | 103 | District-level sale metrics (engine-eligible) |
+| `gold.re_district_metrics` | varies | District yield metrics (dashboard-only) |
+| `gold.asset_scores` | 4 | Cross-asset comparison |
+| `gold.market_snapshot` | 32 | Market snapshot |
+
+### PostgreSQL (Grafana backend, via `scripts/export_to_postgres.py`)
+
+| Table | Rows | Description |
+|---|---|---|
+| `gold.stock_performance` | 1,230 | OHLCV + change_pct (mapped from silver.stock_eod) |
+| `gold.stock_fundamentals` | 10 | Company fundamentals (mapped from silver.fundamentals) |
+| `gold.stock_technical` | 1,230 | SMA20/50 + RSI14 (computed from silver.stock_eod) |
+

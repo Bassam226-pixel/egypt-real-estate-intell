@@ -8,13 +8,13 @@ from spark_jobs.common.spark_session import get_spark_session
 LEADING_NUMBER = r"([\d,]+\.?\d*)"
 
 COMMON_COLUMNS = [
-    "source", "listing_id", "title", "property_type", "district", "location_raw",
-    "area_sqm", "price_egp", "bedrooms", "bathrooms", "link", "scraped_at",
+    "source", "listing_id", "title", "property_type", "governorate", "district",
+    "location_raw", "area_sqm", "price_egp", "bedrooms", "bathrooms", "link", "scraped_at",
 ]
 
 
 def _price_egp(price: Column) -> Column:
-    return F.regexp_replace(price, r"[^0-9]", "").cast("double")
+    return F.regexp_replace(price, r"[^0-9.]", "").cast("double")
 
 
 def _area_sqm(area: Column) -> Column:
@@ -40,6 +40,13 @@ def _district_from_comma_location(location: Column) -> Column:
     return F.when(n >= 2, F.element_at(parts, -2)).when(n == 1, F.element_at(parts, -1))
 
 
+def _governorate_from_comma_location(location: Column) -> Column:
+    # propertyfinder/bayut: same comma-separated location string as district above --
+    # the last non-empty segment is the governorate/region.
+    parts = F.filter(F.split(location, r"\s*,\s*"), lambda x: x != "")
+    return F.trim(F.element_at(parts, -1))
+
+
 def _read_aqarmap(spark: SparkSession) -> DataFrame:
     df = io.read_json(spark, "aqarmap_data.json")
     return df.select(
@@ -47,6 +54,9 @@ def _read_aqarmap(spark: SparkSession) -> DataFrame:
         _listing_id_from_link(F.col("link"), r"/listing/(\d+)-").alias("listing_id"),
         F.col("title").alias("title"),
         F.col("property_type").alias("property_type"),
+        # aqarmap's location string has no explicit governorate segment (unlike the
+        # comma-separated propertyfinder/bayut format) -- not reliably derivable.
+        F.lit(None).cast("string").alias("governorate"),
         _district_from_slash_location(F.col("location")).alias("district"),
         F.col("location").alias("location_raw"),
         _area_sqm(F.col("area")).alias("area_sqm"),
@@ -65,6 +75,7 @@ def _read_propertyfinder(spark: SparkSession) -> DataFrame:
         _listing_id_from_link(F.col("link"), r"-(\d+)\.html$").alias("listing_id"),
         F.col("title").alias("title"),
         F.col("property_type").alias("property_type"),
+        _governorate_from_comma_location(F.col("location")).alias("governorate"),
         _district_from_comma_location(F.col("location")).alias("district"),
         F.col("location").alias("location_raw"),
         _area_sqm(F.col("area")).alias("area_sqm"),
@@ -83,6 +94,7 @@ def _read_bayut(spark: SparkSession) -> DataFrame:
         _listing_id_from_link(F.col("link"), r"details-(\d+)\.html$").alias("listing_id"),
         F.col("title").alias("title"),
         F.col("property_type").alias("property_type"),
+        _governorate_from_comma_location(F.col("location")).alias("governorate"),
         _district_from_comma_location(F.col("location")).alias("district"),
         F.col("location").alias("location_raw"),
         _area_sqm(F.col("area")).alias("area_sqm"),
