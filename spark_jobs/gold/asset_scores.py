@@ -12,6 +12,11 @@ from spark_jobs.gold.gold_metal_roi import daily_metal_prices
 VOL_WINDOW_DAYS = 90
 ANNUALIZED_VOL_FACTOR = 252 ** 0.5
 
+# RE listings are a single snapshot with no price history, so a time-series return/vol
+# cannot be computed. These two assumptions stand in for them (documented in the labels):
+RE_ANNUAL_APPRECIATION = 0.04
+RE_ANNUAL_VOLATILITY = 0.10
+
 ASSET_SCORE_SCHEMA = (
     "asset_class string, roi_proxy double, roi_proxy_label string, "
     "vol_proxy double, vol_proxy_label string, as_of_date date"
@@ -60,17 +65,19 @@ def _metal_row(spark: SparkSession, metal: str, daily: DataFrame, roi: DataFrame
 
 def _real_estate_row(spark: SparkSession) -> DataFrame:
     sales = io.read_table(spark, "silver", "re_sales")
-    dispersion = sales.agg(
-        (F.stddev("price_per_sqm_egp") / F.avg("price_per_sqm_egp")).alias("cv"),
-        F.max(F.to_date("scraped_at")).alias("as_of_date"),
-    ).first()
+    as_of_date = sales.select(F.max(F.to_date("scraped_at")).alias("d")).first()["d"]
     yield_avg = io.read_table(spark, "gold", "re_district_metrics").agg(
         F.avg("gross_yield_pct").alias("y")
     ).first()["y"]
+    total_return = yield_avg / 100.0 + RE_ANNUAL_APPRECIATION
     return spark.createDataFrame(
         [(
-            "real_estate", yield_avg, "avg_district_gross_rental_yield_pct",
-            dispersion["cv"], "cross_sectional_price_per_sqm_dispersion", dispersion["as_of_date"],
+            "real_estate",
+            total_return,
+            "avg_gross_yield_plus_assumed_appreciation",
+            RE_ANNUAL_VOLATILITY,
+            "assumed_longrun_annualized_vol",
+            as_of_date,
         )],
         ASSET_SCORE_SCHEMA,
     )

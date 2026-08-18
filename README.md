@@ -2,16 +2,18 @@
 
 A personal data lakehouse built on **Apache Iceberg**, **Project Nessie**, **Apache Spark**, **Apache Airflow**, and **AWS S3** — designed to ingest, clean, and serve Egyptian investment data across equities, commodities, currencies, and real estate.
 
-This repository covers my personal contribution to the [Egyptian Investment Intelligence Platform](https://github.com/): the full lakehouse foundation — storage, catalog, compute, orchestration, and query engine — plus the scaffolding for a real-estate recommendation engine and API/dashboard layer, built on a production-grade open lakehouse stack.
+This repository covers my personal contribution to the [Egyptian Investment Intelligence Platform](https://github.com/): the full lakehouse foundation — storage, catalog, compute, orchestration, and query engine — plus a functional Streamlit application on top: a real-estate recommendation engine with a clear verdict, a property finder, and a RAG-based investment assistant, built on a production-grade open lakehouse stack.
 <img width="1774" height="887" alt="EG balance" src="https://github.com/user-attachments/assets/89e947d3-811a-4ec0-bca7-03349f5cdf0e" />
 
-> For the full table-by-table transformation logic (and the real bugs hit while building it), see [PIPELINE.md](PIPELINE.md). For connecting Dremio, see [DREMIO_SETUP.md](DREMIO_SETUP.md).
+> For the full table-by-table transformation logic (and the real bugs hit while building it), see [PIPELINE.md](PIPELINE.md). For connecting Dremio, see [DREMIO_SETUP.md](DREMIO_SETUP.md). For a presentation-ready overview of the whole pipeline, see [docs/OVERVIEW.md](docs/OVERVIEW.md). Recent fixes are recorded in [FIX_NOTES.md](FIX_NOTES.md).
 
 ---
 
 ## What This Project Does
 
 Raw investment data from multiple Egyptian market sources is uploaded to **AWS S3**, cleaned and modeled by **Apache Spark** into **Apache Iceberg tables** (Silver → Gold), cataloged by **Project Nessie**, orchestrated by **Apache Airflow**, and queryable through **Dremio** for BI tools like Power BI and Grafana.
+
+On top of that foundation sits a functional **Streamlit application** that reads the Gold layer through Dremio and answers the core question — *which asset should I invest in?* — with a clear **verdict banner** naming the best single investment, a full portfolio allocation, a **property finder**, and an **Ask AI assistant** that answers questions about the recommendation via a RAG pipeline scoped to the current recommendation.
 
 ### Data Sources
 
@@ -46,12 +48,18 @@ Local data files (CSV, JSON)
          │
     ┌────┴─────┬───────────────┐
     ▼          ▼               ▼
-  Dremio    RAG Pipeline    API + Frontend
-  Power BI  (ChromaDB+LLM)  (planned, --profile app)
-  Grafana
+  Dremio   RAG Pipeline     Streamlit App
+  Power BI  (ChromaDB +     (recommendation +
+  Grafana    NVIDIA LLM)     property finder +
+                             ask AI)
+        │           │
+        └────┬──────┘
+             ▼
+   RAG scope: current recommendation only
 
 Orchestration: Apache Airflow (LocalExecutor, Spark in local mode inside the Airflow worker)
 Catalog:       Project Nessie, backed by its own Postgres (JDBC2 version store)
+App layer:     Streamlit (app/), served alongside api/ + frontend/ scaffolding (still empty)
 ```
 
 **Catalog:** Project Nessie — Git-like branching for the Iceberg catalog, versioned via a dedicated Postgres
@@ -76,6 +84,9 @@ Catalog:       Project Nessie, backed by its own Postgres (JDBC2 version store)
 | AWS S3 | — | Data lake object storage |
 | Dremio OSS | latest | SQL query engine + BI connectivity |
 | ChromaDB | latest | Vector store for the RAG pipeline (`--profile rag`) |
+| Streamlit | latest | Web app UI — recommendation, property finder, Ask AI |
+| Python | 3.11 | App + RAG layer (`app/`) |
+| NVIDIA NIM / LLM | hosted | Explanation layer behind the Ask AI assistant |
 | Docker Compose | — | Container orchestration |
 
 ---
@@ -110,7 +121,7 @@ No Iceberg tables. Each loader uploads a local file as-is to `s3://<bucket>/raw/
 | `gold.gold_metal_roi` | Trailing 1/3/5/10-yr ROI for gold & silver, USD and EGP |
 | `gold.re_sale_metrics` | District-level sale price/m² stats — **engine-eligible** (feeds the recommendation engine) |
 | `gold.re_district_metrics` | Sale + rental district stats with `gross_yield_pct` — **dashboard-only** |
-| `gold.asset_scores` | Cross-asset comparison: stocks vs. gold vs. silver vs. real estate |
+| `gold.asset_scores` | Cross-asset comparison: stocks vs. gold vs. silver vs. real estate — real-estate return = district `gross_yield_pct` + 4% annual appreciation, with a 10% assumed volatility (documented in the table's `*_label` columns) |
 | `gold.market_snapshot` | Tidy long fact table: EGX30 index + metal spot + FX, one row per metric |
 
 ---
@@ -158,7 +169,7 @@ DREMIO_FLIGHT_URI=grpc+tcp://dremio:32010
 CHROMA_URL=http://chromadb:8000
 
 # ---- LLM (explanation layer / RAG) ----
-ANTHROPIC_API_KEY=
+NVIDIA_API_KEY=your_nvidia_api_key
 
 # ---- Scraping proxies (optional) ----
 PROXY_URL=
@@ -179,9 +190,11 @@ docker compose up -d postgres airflow-init airflow-webserver airflow-scheduler
 # + RAG (optional)
 docker compose --profile rag up -d
 
-# + API/Frontend app layer (optional, in progress — see below)
-docker compose --profile app up -d
+# + Streamlit app (recommendation / property finder / Ask AI)
+docker compose up -d --build nessie-postgres nessie dremio chromadb streamlit
 ```
+
+> `api/` and `frontend/` are still empty scaffolding, so the full `--profile app` group is not runnable yet — start `streamlit` explicitly as above. The `app/Dockerfile` pre-seeds ChromaDB with the default ONNX embedding model (`all-MiniLM-L6-v2`) at build time, so the first Ask AI run doesn't need to download the ~80 MB model.
 
 | Service | URL |
 |---|---|
@@ -189,6 +202,8 @@ docker compose --profile app up -d
 | Nessie API | http://localhost:19120/api/v2 |
 | Dremio UI | http://localhost:9047 |
 | Airflow UI | http://localhost:8082 |
+| Streamlit App | http://localhost:8501 |
+| ChromaDB | http://localhost:8003 |
 | API (planned) | http://localhost:8000 |
 | Frontend (planned) | http://localhost:3000 |
 
@@ -226,6 +241,24 @@ python -m spark_jobs.gold.market_snapshot
 ```
 
 A data-quality gate (`spark_jobs/quality/`) is scaffolded — it's meant to validate each layer and, per its design, promote a run branch to `main` only on pass — but the check suites are stubs today, not yet enforced.
+
+---
+
+## Streamlit App
+
+The app (`app/`, port **8501**) reads the Gold layer through **Dremio** and has three tabs:
+
+- **Recommendation** — pick your investment amount, time horizon, and risk tolerance, then get a portfolio allocation across stocks, gold, silver, and real estate, plus a bold **verdict banner** naming the single best asset and its best specific pick (e.g. the top-scoring property or stock) with the rationale behind it.
+- **Property Finder** — explore real-estate districts: filter by city/district and sort by price per m², yield, and other metrics.
+- **Ask AI** — a RAG assistant backed by ChromaDB + an NVIDIA LLM that answers questions about *the current recommendation*. Context is ingested automatically on every new recommendation (or via the "Re-ingest Recommendation" button), so the AI only ever talks about the recommendation in front of you.
+
+![Recommendation page with verdict banner and allocation](Images/Streamlit/recommendation_page.png)
+
+![Property Finder tab](Images/Streamlit/properety_finder.png)
+
+![Ask AI assistant answering about the recommendation](Images/Streamlit/ai_assistant.png)
+
+> **Note:** the RAG pipeline intentionally ingests **only the recommendation result** (not the whole Gold layer) — see `app/rag/ingest.py::ingest_recommendation()`. The `app/Dockerfile` pre-seeds ChromaDB with the default ONNX embedding model at build time, so the first question doesn't trigger an ~80 MB model download.
 
 ---
 
@@ -284,10 +317,12 @@ Merge back to `main` only once the branch's tables are verified.
 - **No AWS Glue:** Glue uses the Glue Data Catalog and is incompatible with the Nessie catalog used here
 - **Dremio as intermediary:** Grafana cannot read Parquet/Iceberg directly from S3 — Dremio is required as the query layer for both Power BI and Grafana
 - **`createOrReplace()` over SQL DDL:** Iceberg tables are created via the DataFrame API (`createOrReplace()`) rather than SQL `CREATE TABLE` statements, to avoid Nessie stale reference conflicts
-- **`engine/`, `api/`, `frontend/` are scaffolding, not yet implemented:** they're wired into `docker-compose.yml` (`--profile app`) and mounted into the Airflow containers, but currently empty — the recommendation engine and dashboard are the next milestone, built on top of the `for_recommendation_use`-tagged Gold tables
+- **`app/` is the functional application layer:** `app/engine/` (recommendation + property finder), `app/rag/` (Ask AI), and `app/streamlit_app.py` (UI) — served by the `streamlit` service
+- **`api/` and `frontend/` are still empty scaffolding:** wired into `docker-compose.yml` (`--profile app`) but not yet implemented — the full profile can't run until they're built, so the app is started explicitly
+- **RAG is scoped to the recommendation:** the Ask AI assistant ingests only the current recommendation result (`ingest_recommendation()`), not the whole Gold layer — re-ingested automatically on each new recommendation
 
 ---
 
 ## Project Context
 
-This repository is my individual contribution to the **Egyptian Investment Intelligence Platform** — a team project combining a data lakehouse with a RAG-based investment recommendation engine. My scope covers the lakehouse foundation: raw ingestion, Iceberg table design (Silver & Gold), Nessie catalog management, Spark transformation jobs, Airflow orchestration, S3 storage architecture, and Dremio query layer setup — plus the early scaffolding (`engine/`, `api/`, `frontend/`, RAG via ChromaDB) for the recommendation engine and dashboard layers still to come.
+This repository is my individual contribution to the **Egyptian Investment Intelligence Platform** — a team project combining a data lakehouse with a RAG-based investment recommendation engine. My scope covers the lakehouse foundation: raw ingestion, Iceberg table design (Silver & Gold), Nessie catalog management, Spark transformation jobs, Airflow orchestration, S3 storage architecture, and Dremio query layer setup — plus the functional **Streamlit app** (recommendation with a clear verdict, property finder, and Ask-AI RAG assistant) that consumes the Gold layer, with `api/` and `frontend/` left as scaffolding for a future dashboard.
