@@ -21,14 +21,11 @@ In the Dremio UI: **Add Source → Nessie** (under "Metastores" / "Catalogs"), t
 - Nessie endpoint URL: `http://nessie:19120/api/v2`
 - Authentication: `None`
 
-**Storage** (this is the MinIO bucket the Iceberg data lives on)
-- AWS access key / secret: your `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` (default `minioadmin` / `minioadmin`)
-- Root path: `warehouse` (the bucket `minio-init` created)
-- **Enable compatibility mode** (required for MinIO / non-AWS S3)
-- Connection properties:
-  - `fs.s3a.endpoint = minio:9000`
-  - `fs.s3a.path.style.access = true`
-  - `dremio.s3.compat = true`
+**Storage** (this project uses real AWS S3, not MinIO — there is no `minio` service in `docker-compose.yml`)
+- AWS access key / secret: your `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` from `.env`
+- Root path: the bucket + prefix from `WAREHOUSE` in `.env` (e.g. `your-bucket-name/warehouse`)
+- Region: your `AWS_REGION` from `.env`
+- Leave compatibility mode **off** — that's only for MinIO / non-AWS S3-compatible stores
 
 Save. You should now see `nessie` in the source list, and can browse `nessie → gold → stock_scores`, etc.
 
@@ -38,6 +35,7 @@ Save. You should now see `nessie` in the source list, and can browse `nessie →
 - From a BI tool: JDBC/ODBC on port 31010, or Arrow Flight on 32010
 
 ## Notes
-- **Branches:** because Dremio queries Nessie, it sees `main` by default. Your Spark quality gate writes to a run branch and merges to `main` only on pass — so Dremio always reads validated data. You can also query a branch explicitly: `SELECT * FROM nessie.gold.stock_scores AT BRANCH "etl_20260702"`.
+- **Branches:** because Dremio queries Nessie, it sees `main` by default. You can query a branch explicitly: `SELECT * FROM nessie.gold.stock_scores AT BRANCH "etl_20260702"`.
+- **No quality gate yet:** `spark_jobs/quality/` is scaffolded but its check files are currently empty — Gold jobs write straight to `main` with no validation before Dremio/Grafana/Streamlit read it. There is no run-branch-then-merge-on-pass behavior today.
 - **Reflections (optional):** Dremio can materialize/accelerate frequent queries ("reflections") — useful later for the dashboard, not needed for the MVP.
 - **Memory:** Dremio wants ~4 GB. With Spark + Airflow + Postgres also running, aim for 16 GB RAM on the machine, or lower `DREMIO_MAX_MEMORY_SIZE_MB` and stop services you're not using.

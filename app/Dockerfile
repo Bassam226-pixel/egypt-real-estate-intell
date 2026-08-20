@@ -11,6 +11,10 @@ RUN python -c "from chromadb.utils.embedding_functions import DefaultEmbeddingFu
 
 COPY . .
 
+RUN useradd --create-home --uid 1000 appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+
 EXPOSE 8501
 
 ENV PYTHONPATH=/

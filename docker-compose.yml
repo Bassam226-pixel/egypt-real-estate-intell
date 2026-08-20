@@ -203,11 +203,11 @@ services:
     image: postgres:16-alpine
     container_name: postgres-grafana
     ports:
-      - "5433:5432"
+      - "5434:5432"  # host 5434: 5433 is already claimed by nessie-postgres above
     environment:
       POSTGRES_DB: investment_analytics
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin123
+      POSTGRES_USER: ${GRAFANA_PG_USER:-admin}
+      POSTGRES_PASSWORD: ${GRAFANA_PG_PASSWORD:-admin123}
       POSTGRES_HOST_AUTH_METHOD: trust
     volumes:
       - postgres_grafana_data:/var/lib/postgresql/data
@@ -219,7 +219,7 @@ services:
     image: grafana/grafana:12.4.2-ubuntu
     container_name: grafana
     ports:
-      - "3000:3000"
+      - "3001:3000"  # host 3001: 3000 is claimed by the frontend service under --profile app
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
@@ -230,6 +230,8 @@ services:
       - GF_RENDERING_CALLBACK_URL=http://grafana:3000/
       - GF_LOG_LEVEL=warn
       - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/home.json
+      - POSTGRES_USER=${GRAFANA_PG_USER:-admin}
+      - POSTGRES_PASSWORD=${GRAFANA_PG_PASSWORD:-admin123}
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
@@ -260,8 +262,8 @@ services:
       - POSTGRES_HOST=postgres-grafana
       - POSTGRES_PORT=5432
       - POSTGRES_DB=investment_analytics
-      - POSTGRES_USER=admin
-      - POSTGRES_PASSWORD=admin123
+      - POSTGRES_USER=${GRAFANA_PG_USER:-admin}
+      - POSTGRES_PASSWORD=${GRAFANA_PG_PASSWORD:-admin123}
     command: >
       sh -c "pip install --quiet psycopg2-binary boto3 &&
              python /opt/project/scripts/export_to_postgres.py"

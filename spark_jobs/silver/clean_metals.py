@@ -22,8 +22,10 @@ def clean_metals_history(spark: SparkSession, egp_rate: float) -> DataFrame:
         .withColumn("price_ts", F.to_timestamp(F.col("time")))
         .withColumn("price_date", F.to_date(F.col("price_ts")))
         .withColumn("price_usd", F.col("price").cast("double"))
-        .dropDuplicates(["metal", "price_date", "session"])
     )
+    # Multiple near-duplicate scrapes per metal/day/session; keep only the latest.
+    latest = Window.partitionBy("metal", "price_date", "session").orderBy(F.col("price_ts").desc())
+    df = df.withColumn("_rn", F.row_number().over(latest)).filter(F.col("_rn") == 1).drop("_rn")
     return (
         df.withColumn("price_egp", _to_egp(F.col("price_usd"), egp_rate))
         .withColumn("kind", F.lit("history"))

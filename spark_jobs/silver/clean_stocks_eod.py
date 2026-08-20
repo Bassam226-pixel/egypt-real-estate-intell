@@ -22,7 +22,17 @@ def clean_stocks_eod(spark: SparkSession) -> DataFrame:
         .withColumn("volume", F.col("Volume").cast("long"))
         .withColumn("dividends", F.col("Dividends").cast("double"))
         .withColumn("stock_splits", F.col("Stock_Splits").cast("double"))
-        .dropDuplicates(["ticker", "trade_date"])
+    )
+
+    # dropDuplicates has no defined tie-break, so a re-run on unchanged input could pick a
+    # different arbitrary row for the same (ticker, trade_date). Break ties deterministically.
+    dedup_order = Window.partitionBy("ticker", "trade_date").orderBy(
+        F.col("close").desc(), F.col("volume").desc()
+    )
+    df = (
+        df.withColumn("_rn", F.row_number().over(dedup_order))
+        .filter(F.col("_rn") == 1)
+        .drop("_rn")
     )
 
     by_ticker_asc = Window.partitionBy("ticker").orderBy("trade_date")
@@ -33,7 +43,9 @@ def clean_stocks_eod(spark: SparkSession) -> DataFrame:
     # chart of adj_close has no artificial jump on the split/dividend date. Spark has no
     # windowed running-product aggregate, so the cumulative forward factor is done via
     # log-sum-exp (all ratios are positive: 1.0 when nothing happened that day).
-    split_ratio = F.when(F.col("stock_splits") != 0, F.col("stock_splits")).otherwise(F.lit(1.0))
+    # A stock_splits value of e.g. 2.0 means a 2-for-1 split: pre-split prices must be
+    # *divided* by the ratio (not multiplied) so historical adj_close shrinks to match.
+    split_ratio = F.when(F.col("stock_splits") != 0, F.lit(1.0) / F.col("stock_splits")).otherwise(F.lit(1.0))
     dividend_ratio = F.when(
         (F.col("dividends") != 0) & prev_close.isNotNull() & (prev_close != 0),
         F.lit(1.0) - F.col("dividends") / prev_close,

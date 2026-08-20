@@ -1,8 +1,16 @@
+from pathlib import Path
+
 from scrapling.fetchers import StealthyFetcher
 from deep_translator import GoogleTranslator
 import json
 import time
 from datetime import datetime
+
+# Matches ingestion/loaders/load_re_sales.py's expected data/<site>/<site>_data.json layout.
+DATA_DIR = Path(__file__).resolve().parents[2] / "data" / "aqarmap"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_FILE = DATA_DIR / "aqarmap_data.json"
+RAW_FILE = DATA_DIR / "aqarmap_data_raw.json"
 
 
 def translate_text(text):
@@ -198,7 +206,7 @@ def translate_listings(listings):
 
         if (i + 1) % 50 == 0:
             print(f"Translated {i+1}/{len(listings)}")
-            with open('scrapers/aqarmap/data.json', 'w', encoding='utf-8') as f:
+            with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
                 json.dump(listings, f, ensure_ascii=False, indent=2)
 
         time.sleep(0.3)
@@ -223,7 +231,7 @@ def main():
         page_num += 1
 
         if page_num % 10 == 0:
-            with open('scrapers/aqarmap/data_raw.json', 'w', encoding='utf-8') as f:
+            with open(RAW_FILE, 'w', encoding='utf-8') as f:
                 json.dump(all_listings, f, ensure_ascii=False, indent=2)
             print(f"Progress saved: {len(all_listings)} listings so far.")
 
@@ -231,16 +239,16 @@ def main():
 
     print(f"\nScraping done. Total listings before translation: {len(all_listings)}")
 
-    with open('scrapers/aqarmap/data_raw.json', 'w', encoding='utf-8') as f:
+    with open(RAW_FILE, 'w', encoding='utf-8') as f:
         json.dump(all_listings, f, ensure_ascii=False, indent=2)
 
     all_listings = translate_listings(all_listings)
 
-    with open('scrapers/aqarmap/data.json', 'w', encoding='utf-8') as f:
+    with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
         json.dump(all_listings, f, ensure_ascii=False, indent=2)
 
     print(f"\nTotal listings scraped: {len(all_listings)}")
-    print("Data saved to scrapers/aqarmap/data.json")
+    print(f"Data saved to {OUTPUT_FILE}")
 
 
 if __name__ == "__main__":

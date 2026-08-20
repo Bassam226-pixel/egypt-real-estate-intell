@@ -29,7 +29,15 @@ def clean_fundamentals(spark: SparkSession) -> DataFrame:
         .withColumn("fifty_two_week_high", F.col("FiftyTwoWeekHigh").cast("double"))
         .withColumn("fifty_two_week_low", F.col("FiftyTwoWeekLow").cast("double"))
         .withColumn("employees", F.col("Employees").cast("int"))
-        .dropDuplicates(["ticker"])
+    )
+
+    # No timestamp column to break ties on; prefer the more complete row deterministically
+    # instead of dropDuplicates' undefined tie-break.
+    dedup_order = Window.partitionBy("ticker").orderBy(F.col("market_cap").desc_nulls_last())
+    df = (
+        df.withColumn("_rn", F.row_number().over(dedup_order))
+        .filter(F.col("_rn") == 1)
+        .drop("_rn")
     )
 
     # ROE proxy from the P/B / P/E identity: (Price/BVPS) / (Price/EPS) = EPS/BVPS = ROE.
@@ -51,7 +59,7 @@ def clean_fundamentals(spark: SparkSession) -> DataFrame:
 
 
 def clean_stock_quotes(spark: SparkSession) -> DataFrame:
-    return (
+    df = (
         io.read_csv(spark, "live_quotes_all.csv")
         .withColumn("ticker", F.regexp_replace(F.col("Symbol"), TICKER_SUFFIX, ""))
         .withColumn("previous_close", F.col("previousClose").cast("double"))
@@ -66,7 +74,14 @@ def clean_stock_quotes(spark: SparkSession) -> DataFrame:
         .withColumn("currency", F.trim(F.col("Currency")))
         .withColumn("exchange", F.trim(F.col("Exchange")))
         .withColumn("quote_ts", F.to_timestamp(F.col("Timestamp")))
-        .dropDuplicates(["ticker"])
+    )
+
+    # Multiple near-duplicate scrapes per ticker; keep only the latest quote.
+    latest = Window.partitionBy("ticker").orderBy(F.col("quote_ts").desc())
+    return (
+        df.withColumn("_rn", F.row_number().over(latest))
+        .filter(F.col("_rn") == 1)
+        .drop("_rn")
         .select(
             "ticker", "previous_close", "open", "day_high", "day_low", "close",
             "volume", "change", "change_pct", "market_cap", "currency", "exchange", "quote_ts",
@@ -83,7 +98,12 @@ def clean_egx30_index(spark: SparkSession) -> DataFrame:
         .withColumn("low", F.col("Low").cast("double"))
         .withColumn("close", F.col("Close").cast("double"))
         .withColumn("volume", F.col("Volume").cast("long"))
-        .dropDuplicates(["trade_date"])
+    )
+    dedup_order = Window.partitionBy("trade_date").orderBy(F.col("close").desc(), F.col("volume").desc())
+    df = (
+        df.withColumn("_rn", F.row_number().over(dedup_order))
+        .filter(F.col("_rn") == 1)
+        .drop("_rn")
     )
     by_date = Window.orderBy("trade_date")
     return df.withColumn(

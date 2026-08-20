@@ -1,7 +1,15 @@
+from pathlib import Path
+
 from scrapling.fetchers import StealthyFetcher
 import json
 import time
 from datetime import datetime
+
+# Matches ingestion/loaders/load_re_sales.py's expected data/<site>/<site>_data.json layout.
+DATA_DIR = Path(__file__).resolve().parents[2] / "data" / "propertyfinder"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_FILE = DATA_DIR / "propertyfinder_data.json"
+RAW_FILE = DATA_DIR / "propertyfinder_data_raw.json"
 
 
 def scrape_propertyfinder(page_number=1):
@@ -46,7 +54,7 @@ def scrape_propertyfinder(page_number=1):
             listing_id = None
             if link:
                 try:
-                    listing_id = link.rstrip('.html').split('-')[-1]
+                    listing_id = link.removesuffix('.html').split('-')[-1]
                 except Exception:
                     listing_id = link
 
@@ -93,7 +101,7 @@ def main():
         page_num += 1
 
         if page_num % 10 == 0:
-            with open('scrapers/propertyfinder/data_raw.json', 'w', encoding='utf-8') as f:
+            with open(RAW_FILE, 'w', encoding='utf-8') as f:
                 json.dump(all_listings, f, ensure_ascii=False, indent=2)
             print(f"Progress saved: {len(all_listings)} listings so far.")
 
@@ -101,10 +109,10 @@ def main():
 
     print(f"\nScraping done. Total listings: {len(all_listings)}")
 
-    with open('scrapers/propertyfinder/data.json', 'w', encoding='utf-8') as f:
+    with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
         json.dump(all_listings, f, ensure_ascii=False, indent=2)
 
-    print("Data saved to scrapers/propertyfinder/data.json")
+    print(f"Data saved to {OUTPUT_FILE}")
 
 
 if __name__ == "__main__":

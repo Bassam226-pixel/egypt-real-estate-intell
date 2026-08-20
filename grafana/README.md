@@ -4,7 +4,11 @@ This directory contains the Grafana configuration for the Egypt Investment Analy
 
 ## Overview
 
-Grafana is used for creating interactive dashboards to visualize the gold layer data from the Dremio lakehouse.
+Grafana visualizes Gold/Silver layer data through a dedicated `postgres-grafana` Postgres
+instance — **not** through Dremio. `scripts/export_to_postgres.py` (run via the `exporter`
+service) does a direct Spark JDBC write from Nessie/Iceberg into that Postgres instance;
+Grafana then queries it through the auto-provisioned `PostgreSQL` datasource. See
+[PIPELINE.md](../PIPELINE.md) for the full data flow.
 
 ## Directory Structure
 
@@ -12,11 +16,16 @@ Grafana is used for creating interactive dashboards to visualize the gold layer 
 grafana/
 ├── provisioning/
 │   ├── datasources/
-│   │   └── dremio.yml          # Dremio data source configuration
+│   │   └── postgres.yml        # Postgres data source configuration (auto-provisioned)
 │   └── dashboards/
 │       └── dashboards.yml      # Dashboard provisioning configuration
 ├── dashboards/
-│   └── home.json               # Home dashboard
+│   ├── home.json                    # Home dashboard
+│   ├── equities-dashboard.json
+│   ├── commodities-dashboard.json
+│   ├── currencies-dashboard.json
+│   ├── real-estate-dashboard.json
+│   └── portfolio-dashboard.json
 ├── plugins/                    # Grafana plugins directory
 ├── screenshot_utility.py       # Python script for capturing screenshots
 ├── requirements.txt            # Python dependencies
@@ -25,28 +34,23 @@ grafana/
 
 ## Quick Start
 
-### 1. Start Grafana
+### 1. Export Gold layer data to Postgres, then start Grafana
 
 ```bash
-docker-compose up -d grafana grafana-image-renderer
+docker compose --profile export up exporter
+docker compose up -d postgres-grafana grafana grafana-image-renderer
 ```
 
 ### 2. Access Grafana
 
-- URL: http://localhost:3000
-- Username: admin
-- Password: admin
+- URL: http://localhost:3001 (host port 3001 — 3000 is reserved for the `frontend` service under `--profile app`)
+- Username: `admin` (`GF_SECURITY_ADMIN_USER`)
+- Password: `admin` (`GF_SECURITY_ADMIN_PASSWORD`)
 
-### 3. Install Dremio Plugin
-
-After starting Grafana, install the Dremio datasource plugin:
-
-1. Go to **Configuration** → **Data Sources** → **Add data source**
-2. Search for "Dremio"
-3. Install the plugin
-4. Configure the connection:
-   - URL: `http://dremio2:9047`
-   - Path: `/dremio`
+The `PostgreSQL` datasource is provisioned automatically from `provisioning/datasources/postgres.yml`
+— no manual data source setup is needed. Its credentials come from the `GRAFANA_PG_USER` /
+`GRAFANA_PG_PASSWORD` env vars (see `env.example`), which must match `postgres-grafana`'s own
+credentials.
 
 ## Screenshot Capabilities
 
@@ -59,24 +63,24 @@ Grafana is configured with the image renderer for capturing dashboard screenshot
 pip install -r requirements.txt
 
 # List all dashboards
-python screenshot_utility.py --action list
+python screenshot_utility.py --url http://localhost:3001 --action list
 
 # Capture a specific dashboard
-python screenshot_utility.py --action capture --dashboard <UID> --output screenshots/
+python screenshot_utility.py --url http://localhost:3001 --action capture --dashboard <UID> --output screenshots/
 
 # Capture all dashboards
-python screenshot_utility.py --action capture-all --output screenshots/
+python screenshot_utility.py --url http://localhost:3001 --action capture-all --output screenshots/
 
 # Capture individual panels
-python screenshot_utility.py --action capture-panels --dashboard <UID> --output screenshots/
+python screenshot_utility.py --url http://localhost:3001 --action capture-panels --dashboard <UID> --output screenshots/
 
 # Export dashboard JSON
-python screenshot_utility.py --action export --dashboard <UID> --output dashboards/
+python screenshot_utility.py --url http://localhost:3001 --action export --dashboard <UID> --output dashboards/
 ```
 
 ### Command Line Options
 
-- `--url`: Grafana URL (default: http://localhost:3000)
+- `--url`: Grafana URL (default: http://localhost:3000 — pass `http://localhost:3001` for this project's mapping)
 - `--username`: Grafana username (default: admin)
 - `--password`: Grafana password (default: admin)
 - `--action`: Action to perform (list, capture, capture-all, capture-panels, export)
@@ -92,10 +96,10 @@ You can also capture screenshots directly using the Grafana API:
 
 ```bash
 # Capture dashboard screenshot
-curl -u admin:admin "http://localhost:3000/render/d/<DASHBOARD_UID>?orgId=1&from=now-1h&to=now&width=1920&height=1080" -o dashboard.png
+curl -u admin:admin "http://localhost:3001/render/d/<DASHBOARD_UID>?orgId=1&from=now-1h&to=now&width=1920&height=1080" -o dashboard.png
 
 # Capture specific panel
-curl -u admin:admin "http://localhost:3000/render/d/<DASHBOARD_UID>?orgId=1&panelId=<PANEL_ID>&width=800&height=400" -o panel.png
+curl -u admin:admin "http://localhost:3001/render/d/<DASHBOARD_UID>?orgId=1&panelId=<PANEL_ID>&width=800&height=400" -o panel.png
 ```
 
 ## Environment Variables
@@ -104,22 +108,20 @@ The Grafana container can be configured using environment variables in `docker-c
 
 - `GF_SECURITY_ADMIN_USER`: Admin username (default: admin)
 - `GF_SECURITY_ADMIN_PASSWORD`: Admin password (default: admin)
-- `GF_INSTALL_PLUGINS`: Comma-separated list of plugins to install
 - `GF_RENDERING_SERVER_URL`: Image renderer URL
 - `GF_RENDERING_CALLBACK_URL`: Grafana callback URL for rendering
+- `POSTGRES_USER` / `POSTGRES_PASSWORD`: substituted into `postgres.yml`'s datasource config via `$__env{}` — set via `GRAFANA_PG_USER` / `GRAFANA_PG_PASSWORD` in `.env`
 
 ## Resource Limits
 
-Grafana is configured with lightweight resource limits:
-
 - **Grafana**: 512MB memory, 0.5 CPU
-- **Image Renderer**: 256MB memory, 0.25 CPU
+- **Image Renderer**: 2GB memory, 1.0 CPU
 
 ## Troubleshooting
 
 ### Grafana won't start
 
-1. Check if ports are available: `netstat -an | findstr :3000`
+1. Check if port 3001 is available: `netstat -an | findstr :3001`
 2. Check Docker logs: `docker logs grafana`
 3. Verify provisioning files are correct
 
@@ -129,28 +131,14 @@ Grafana is configured with lightweight resource limits:
 2. Check renderer logs: `docker logs grafana-image-renderer`
 3. Verify environment variables in docker-compose.yml
 
-### Data source connection issues
+### Data source connection issues / empty dashboards
 
-1. Ensure Dremio is running: `docker ps | findstr dremio2`
-2. Check Dremio logs: `docker logs dremio2`
-3. Verify the Dremio plugin is installed and configured
+1. Ensure `postgres-grafana` is running: `docker ps | findstr postgres-grafana`
+2. Check that the export job has actually run: `docker compose --profile export up exporter` populates the tables Grafana queries — dashboards will be empty until this has run at least once
+3. Check Postgres logs: `docker logs postgres-grafana`
 
 ## Dashboard Design Reference
 
-For comprehensive dashboard structures, visualizations, and KPIs, see:
-- **[DASHBOARD_DESIGN.md](DASHBOARD_DESIGN.md)** - Complete guide to all dashboards, visualizations, and implementation details
-
-## Next Steps
-
-1. Create dashboard JSON files for each domain:
-   - Equities Dashboard
-   - Commodities Dashboard
-   - Currencies Dashboard
-   - Real Estate Dashboard
-   - Portfolio Dashboard
-
-2. Configure data source queries for each dashboard
-
-3. Set up automated screenshot capture for reporting
-
-4. Integrate with Power BI for additional visualization options
+[DASHBOARD_DESIGN.md](DASHBOARD_DESIGN.md) predates the current schema and no longer matches
+the tables `scripts/export_to_postgres.py` actually produces or the queries the dashboard JSON
+files actually run — treat the dashboard JSON files themselves as the source of truth, not that doc.

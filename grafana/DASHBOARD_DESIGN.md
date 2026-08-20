@@ -1,5 +1,14 @@
 # Dashboard Design Guide
 
+> ⚠️ **Stale — do not use the SQL/schema below.** This document predates the current Gold-layer
+> schema and describes tables/columns that don't exist in this repo (e.g. `gold.stock_performance`
+> with embedded sma/rsi/macd, `gold.stock_fundamentals_enriched`, `gold.commodity_trends`,
+> `gold.currency_matrix`, `gold.real_estate_analytics`, `gold.portfolio_summary`). The real,
+> working queries are the ones in `grafana/dashboards/*.json` — treat those JSON files as the
+> source of truth for schema and panel design, not this document. This file needs a full
+> regeneration against the actual schema (see `spark_jobs/gold/*.py` and
+> `scripts/export_to_postgres.py`) before it can be trusted again.
+
 This document provides a comprehensive reference for all dashboard structures, visualizations, and KPIs for the Egypt Investment Analytics project.
 
 ---

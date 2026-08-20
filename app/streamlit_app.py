@@ -229,18 +229,19 @@ with tab_prop:
     dp = _init_provider()
     pf = PropertyFinder(dp)
 
-    if "_pf_opts" not in st.session_state:
+    if "_pf_opts" in st.session_state:
+        opts = st.session_state["_pf_opts"]
+    else:
         with st.spinner("Loading filter options..."):
             try:
-                st.session_state["_pf_opts"] = pf.get_filter_options()
+                opts = pf.get_filter_options()
+                st.session_state["_pf_opts"] = opts
             except Exception as e:
-                st.error(f"Failed to load options: {e}")
-                st.session_state["_pf_opts"] = {
+                st.error(f"Failed to load options: {e}. Retrying on next interaction.")
+                opts = {
                     "districts": [], "property_types": [], "bedrooms": [],
                     "area_min": 0, "area_max": 500,
                 }
-
-    opts = st.session_state["_pf_opts"]
 
     with st.container():
         col1, col2 = st.columns(2)
@@ -268,7 +269,7 @@ with tab_prop:
                 area_max = area_min + 100
             prop_area = st.slider(
                 "Area (sqm)", min_value=0.0, max_value=area_max,
-                value=(area_min, min(300.0, area_max)), step=10.0, key="prop_area"
+                value=(area_min, max(area_min, min(300.0, area_max))), step=10.0, key="prop_area"
             )
 
     search_btn = st.button("Search Properties", type="primary", use_container_width=True)

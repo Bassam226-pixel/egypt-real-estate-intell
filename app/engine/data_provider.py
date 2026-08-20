@@ -6,6 +6,13 @@ import pandas as pd
 from app.config import DREMIO_HOST, DREMIO_REST_PORT, DREMIO_USER, DREMIO_PASSWORD
 
 
+def _sql_string_literal(value: str) -> str:
+    """Quote a string for interpolation into Dremio SQL. Dremio's job-submission API
+    (unlike JDBC) takes only a raw SQL string with no bind-parameter support, so string
+    inputs must be escaped as SQL literals rather than concatenated verbatim."""
+    return "'" + value.replace("'", "''") + "'"
+
+
 class DremioDataProvider:
     def __init__(self) -> None:
         self._base = f"http://{DREMIO_HOST}:{DREMIO_REST_PORT}"
@@ -75,7 +82,6 @@ class DremioDataProvider:
         return pd.DataFrame(rows)
 
     def _query(self, sql: str) -> pd.DataFrame:
-        self._login()
         job_id = self._submit_sql(sql)
         self._poll_job(job_id)
         return self._get_results(job_id)
@@ -140,19 +146,19 @@ class DremioDataProvider:
                    bedrooms, bathrooms, price_per_sqm_egp AS price_per_sqm, link
             FROM nessie.silver.re_sales
             WHERE price_egp <= {}
-        """.format(budget)
+        """.format(float(budget))
         if district:
-            sql += f" AND LOWER(district) = '{district.lower()}'"
+            sql += f" AND LOWER(district) = {_sql_string_literal(district.lower())}"
         if property_type:
-            sql += f" AND LOWER(property_type) = '{property_type.lower()}'"
+            sql += f" AND LOWER(property_type) = {_sql_string_literal(property_type.lower())}"
         if bedrooms:
             if bedrooms == "5+":
                 sql += " AND bedrooms >= 5"
             else:
                 sql += f" AND bedrooms = {int(bedrooms)}"
         if min_area is not None:
-            sql += f" AND area_sqm >= {min_area}"
+            sql += f" AND area_sqm >= {float(min_area)}"
         if max_area is not None:
-            sql += f" AND area_sqm <= {max_area}"
+            sql += f" AND area_sqm <= {float(max_area)}"
         sql += " ORDER BY price_egp ASC"
         return self._query(sql)

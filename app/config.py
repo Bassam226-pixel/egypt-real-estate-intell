@@ -2,8 +2,8 @@ import os
 
 DREMIO_HOST = os.getenv("DREMIO_HOST", "dremio")
 DREMIO_REST_PORT = int(os.getenv("DREMIO_REST_PORT", "9047"))
-DREMIO_USER = os.getenv("DREMIO_USER", "admin")
-DREMIO_PASSWORD = os.getenv("DREMIO_PASSWORD", "admin123")
+DREMIO_USER = os.getenv("DREMIO_USER", "")
+DREMIO_PASSWORD = os.getenv("DREMIO_PASSWORD", "")
 
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
 NVIDIA_BASE_URL = os.getenv("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")

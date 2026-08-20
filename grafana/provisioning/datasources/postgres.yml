@@ -2,13 +2,14 @@ apiVersion: 1
 
 datasources:
   - name: PostgreSQL
+    uid: PCC52D03280B7034C  # pinned: every dashboard JSON hardcodes this uid explicitly
     type: postgres
     access: proxy
     url: postgres-grafana:5432
     database: investment_analytics
-    user: admin
+    user: $__env{POSTGRES_USER}
     secureJsonData:
-      password: admin123
+      password: $__env{POSTGRES_PASSWORD}
     jsonData:
       sslmode: disable
       postgresVersion: 1600

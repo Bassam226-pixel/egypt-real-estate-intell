@@ -277,7 +277,7 @@ instance from Airflow's metadata DB — see `docker-compose.yml`), which Grafana
 
 ### 6. Open Grafana
 
-- URL: http://localhost:3000
+- URL: http://localhost:3001 (host port 3001 — 3000 is reserved for the `frontend` service)
 - Login: `admin` / `admin`
 
 ## Services Reference
@@ -288,8 +288,8 @@ instance from Airflow's metadata DB — see `docker-compose.yml`), which Grafana
 | `jupyter` | 8888 | PySpark + Jupyter (runs pipeline jobs interactively) |
 | `dremio` | 9047 | SQL query layer over Iceberg/S3 — see `DREMIO_SETUP.md` |
 | `postgres` | 5432 | Airflow metadata DB |
-| `postgres-grafana` | 5433 (host) / 5432 (internal) | Grafana's analytics backend |
-| `grafana` | 3000 | Dashboard UI |
+| `postgres-grafana` | 5434 (host) / 5432 (internal) | Grafana's analytics backend |
+| `grafana` | 3001 (host) / 3000 (internal) | Dashboard UI |
 | `grafana-image-renderer` | - | Dashboard screenshot rendering |
 | `airflow-webserver` | 8082 | Airflow UI |
 

@@ -7,7 +7,7 @@
   "version": 1,
   "refresh": "",
   "time": {
-    "from": "now-6h",
+    "from": "now-5y",
     "to": "now"
   },
   "templating": {
@@ -65,7 +65,7 @@
       "targets": [
         {
           "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
-          "rawSql": "SELECT date, price_usd as \"Price (USD/g)\" FROM silver.metals_history WHERE metal = 'gold' ORDER BY date",
+          "rawSql": "SELECT date, price_usd as \"Price (USD/g)\" FROM silver.metals_history WHERE metal = 'gold' AND $__timeFilter(date) ORDER BY date",
           "format": "table",
           "refId": "A"
         }
@@ -112,7 +112,7 @@
       "targets": [
         {
           "datasource": { "type": "postgres", "uid": "PCC52D03280B7034C" },
-          "rawSql": "SELECT date, price_usd as \"Price (USD/g)\" FROM silver.metals_history WHERE metal = 'silver' ORDER BY date",
+          "rawSql": "SELECT date, price_usd as \"Price (USD/g)\" FROM silver.metals_history WHERE metal = 'silver' AND $__timeFilter(date) ORDER BY date",
           "format": "table",
           "refId": "A"
         }

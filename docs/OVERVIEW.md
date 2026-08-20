@@ -77,6 +77,9 @@ listings from all three platforms so Silver can dedupe across them.
 | `chromadb` | ChromaDB | Vector store for the RAG assistant (`--profile rag`) | 8003 |
 | `streamlit` | Streamlit | The recommendation + property-finder + Ask-AI app | 8501 |
 | `postgres` / `redis` / `airflow-*` | — | Airflow orchestration stack (LocalExecutor) | 5432 / 6379 / 8082 |
+| `postgres-grafana` | Postgres 16 | Analytics store fed by `exporter` (direct Spark JDBC from Gold/Silver) — Grafana's only datasource, independent of Dremio | 5434 |
+| `exporter` | Spark 3.5.3 notebook image | Runs `scripts/export_to_postgres.py` (`--profile export`) to populate `postgres-grafana` | — |
+| `grafana` / `grafana-image-renderer` | Grafana 12 | Dashboards over `postgres-grafana` + screenshot rendering | 3001 / — |
 | `api` / `frontend` | — | **Scaffolding only** — directories not created yet | 8000 / 3000 |
 
 ~16 GB RAM recommended (Spark + Airflow + Postgres + Dremio together).

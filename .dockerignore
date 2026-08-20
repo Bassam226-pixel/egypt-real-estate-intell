@@ -1,0 +1,17 @@
+.git
+.venv
+.vscode
+.claude
+logs
+data
+Grafana Dashboards
+Images
+docs
+*.md
+!README.md
+**/__pycache__
+**/*.pyc
+**/.ipynb_checkpoints
+.env
+*.swp
+*.swo

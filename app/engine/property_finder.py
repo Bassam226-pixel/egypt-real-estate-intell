@@ -1,35 +1,12 @@
 import numpy as np
 
 from app.engine.data_provider import DremioDataProvider
+from app.engine.numeric import safe_float as _safe_float, safe_int as _safe_int
 from app.engine.schemas import (
     PropertyListing,
     PropertyFinderFilters,
     PropertyFinderResult,
 )
-
-
-def _safe_int(val: object, default: int = 0) -> int:
-    if val is None:
-        return default
-    try:
-        v = float(val)
-        if v != v:
-            return default
-        return int(v)
-    except (ValueError, TypeError):
-        return default
-
-
-def _safe_float(val: object, default: float = 0.0) -> float:
-    if val is None:
-        return default
-    try:
-        v = float(val)
-        if v != v:
-            return default
-        return v
-    except (ValueError, TypeError):
-        return default
 
 
 def _build_listings(df: "pd.DataFrame") -> list[PropertyListing]:

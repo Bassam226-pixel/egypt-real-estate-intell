@@ -4,7 +4,7 @@
   "tags": ["real-estate", "property", "egypt"],
   "timezone": "Africa/Cairo",
   "editable": true,
-  "refresh": "30s",
+  "refresh": "",
   "time": { "from": "now-30d", "to": "now" },
   "templating": { "list": [] },
   "annotations": { "list": [] },

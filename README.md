@@ -32,7 +32,10 @@ On top of that foundation sits a functional **Streamlit application** that reads
 ---
 
 ## Architecture
-<img width="1774" height="887" alt="EG balance" src="https://github.com/user-attachments/assets/a3d5a952-c1bd-4745-b271-ef73286de620" />
+
+![Platform architecture](readme%20images/arch_diagram.png)
+
+> This diagram shows the full platform vision the team is building toward. **This repo implements the batch/lakehouse path** — S3, Spark, Iceberg, Nessie, Airflow, Dremio, the RAG pipeline, Streamlit, and Grafana — end to end. The Kafka/streaming-ingestion boxes describe planned real-time sources and are **not implemented** in this repo; every table in the Medallion Architecture section below is built from batch files via `ingestion/loaders/`.
 
 ```
 Local data files (CSV, JSON)
@@ -124,6 +127,8 @@ No Iceberg tables. Each loader uploads a local file as-is to `s3://<bucket>/raw/
 | `gold.asset_scores` | Cross-asset comparison: stocks vs. gold vs. silver vs. real estate — real-estate return = district `gross_yield_pct` + 4% annual appreciation, with a 10% assumed volatility (documented in the table's `*_label` columns) |
 | `gold.market_snapshot` | Tidy long fact table: EGX30 index + metal spot + FX, one row per metric |
 
+![Gold layer data model — 7 marts, keys, and engine-eligible vs. dashboard-only flags](readme%20images/gold%20layer.png)
+
 ---
 
 ## Infrastructure Setup
@@ -168,6 +173,10 @@ DREMIO_FLIGHT_URI=grpc+tcp://dremio:32010
 # ---- ChromaDB (rag profile) ----
 CHROMA_URL=http://chromadb:8000
 
+# ---- Grafana's analytics Postgres (postgres-grafana / exporter) ----
+GRAFANA_PG_USER=admin
+GRAFANA_PG_PASSWORD=admin123
+
 # ---- LLM (explanation layer / RAG) ----
 NVIDIA_API_KEY=your_nvidia_api_key
 
@@ -192,6 +201,10 @@ docker compose --profile rag up -d
 
 # + Streamlit app (recommendation / property finder / Ask AI)
 docker compose up -d --build nessie-postgres nessie dremio chromadb streamlit
+
+# + Grafana dashboards (exports Gold layer to Postgres, then starts Grafana)
+docker compose --profile export up exporter
+docker compose up -d postgres-grafana grafana grafana-image-renderer
 ```
 
 > `api/` and `frontend/` are still empty scaffolding, so the full `--profile app` group is not runnable yet — start `streamlit` explicitly as above. The `app/Dockerfile` pre-seeds ChromaDB with the default ONNX embedding model (`all-MiniLM-L6-v2`) at build time, so the first Ask AI run doesn't need to download the ~80 MB model.
@@ -204,6 +217,7 @@ docker compose up -d --build nessie-postgres nessie dremio chromadb streamlit
 | Airflow UI | http://localhost:8082 |
 | Streamlit App | http://localhost:8501 |
 | ChromaDB | http://localhost:8003 |
+| Grafana | http://localhost:3001 |
 | API (planned) | http://localhost:8000 |
 | Frontend (planned) | http://localhost:3000 |
 
@@ -211,7 +225,21 @@ docker compose up -d --build nessie-postgres nessie dremio chromadb streamlit
 
 ## Running the Pipeline
 
-DAG authoring in `dags/` is still in progress, so today each stage is run as a standalone Python module (inside the `jupyter` container, or any environment with the project on `PYTHONPATH` and `.env` loaded). Order matters within Silver→Gold (see [PIPELINE.md](PIPELINE.md) for the full dependency graph):
+### Via Airflow (implemented)
+
+`dags/` has three DAGs, chained through Airflow's Dataset-scheduling (Airflow 2.9) rather than explicit cross-DAG dependencies — each stage triggers automatically once every dataset the next stage depends on has been updated:
+
+| DAG | Trigger | What it does |
+|---|---|---|
+| `bronze_ingestion_dag` | `schedule="0 3 * * *"` (daily 03:00) | Runs all 6 `ingestion/loaders/` jobs in parallel — they're independent |
+| `silver_transform_dag` | Fires once all 6 Bronze datasets have updated | Runs all 6 `spark_jobs/silver/` jobs, `max_active_tasks=2` (more concurrent Spark/JVM sessions than that exhausted the Airflow worker's memory in testing) |
+| `gold_transform_dag` | Fires once all 8 Silver datasets have updated | Runs the 7 `spark_jobs/gold/` jobs in dependency order (`stock_scores` waits on `stock_returns_vol`, `asset_scores` waits on three upstream marts, etc.), also capped at `max_active_tasks=2` |
+
+Start Airflow (see [Starting the Stack](#starting-the-stack) above) and the three DAGs run end-to-end on their own — no manual triggering needed once source files land locally.
+
+### Manual / ad-hoc (for local debugging)
+
+Each stage is also a standalone Python module, runnable inside the `jupyter` container or any environment with the project on `PYTHONPATH` and `.env` loaded — useful for iterating on a single job without spinning up Airflow. Order matters within Silver→Gold (see [PIPELINE.md](PIPELINE.md) for the full dependency graph):
 
 ```bash
 # Bronze: upload raw source files to S3
@@ -240,7 +268,7 @@ python -m spark_jobs.gold.asset_scores
 python -m spark_jobs.gold.market_snapshot
 ```
 
-A data-quality gate (`spark_jobs/quality/`) is scaffolded — it's meant to validate each layer and, per its design, promote a run branch to `main` only on pass — but the check suites are stubs today, not yet enforced.
+A data-quality gate (`spark_jobs/quality/`) is scaffolded — it's meant to validate each layer and, per its design, promote a run branch to `main` only on pass — but the check suites are stubs today, not yet enforced. Gold jobs (whether run via Airflow or manually) write straight to `main`.
 
 ---
 
@@ -315,8 +343,9 @@ Merge back to `main` only once the branch's tables are verified.
 - **Bronze has no Iceberg tables:** raw files land in `s3://<bucket>/raw/` and are read directly by Silver — there's no `bronze.*` namespace to query
 - **S3A vs S3 paths:** `s3a://` for reading raw CSV/JSON files (Spark Hadoop filesystem); `s3://` for Iceberg table locations (Iceberg S3FileIO) — see `spark_jobs/common/io.py`
 - **No AWS Glue:** Glue uses the Glue Data Catalog and is incompatible with the Nessie catalog used here
-- **Dremio as intermediary:** Grafana cannot read Parquet/Iceberg directly from S3 — Dremio is required as the query layer for both Power BI and Grafana
+- **Dremio as intermediary for Power BI:** Power BI cannot read Parquet/Iceberg directly from S3, so Dremio is required as its query layer. Grafana does **not** go through Dremio — it reads from a dedicated `postgres-grafana` Postgres instance, populated by `scripts/export_to_postgres.py` (the `exporter` service) via a direct Spark JDBC write from Nessie/Iceberg (see [PIPELINE.md](PIPELINE.md))
 - **`createOrReplace()` over SQL DDL:** Iceberg tables are created via the DataFrame API (`createOrReplace()`) rather than SQL `CREATE TABLE` statements, to avoid Nessie stale reference conflicts
+- **DAGs are dataset-chained, not `>>`-chained across files:** `bronze_ingestion_dag` → `silver_transform_dag` → `gold_transform_dag` trigger each other via Airflow Dataset scheduling (each DAG's `schedule` is a list of the `Dataset` URIs the previous stage's tasks declare as `outlets`), not cross-DAG `TriggerDagRunOperator` calls — see the module docstrings in `dags/` for the exact dependency graph and the `max_active_tasks=2` memory-pressure workaround
 - **`app/` is the functional application layer:** `app/engine/` (recommendation + property finder), `app/rag/` (Ask AI), and `app/streamlit_app.py` (UI) — served by the `streamlit` service
 - **`api/` and `frontend/` are still empty scaffolding:** wired into `docker-compose.yml` (`--profile app`) but not yet implemented — the full profile can't run until they're built, so the app is started explicitly
 - **RAG is scoped to the recommendation:** the Ask AI assistant ingests only the current recommendation result (`ingest_recommendation()`), not the whole Gold layer — re-ingested automatically on each new recommendation

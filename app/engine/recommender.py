@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 
 from app.engine.data_provider import DremioDataProvider
+from app.engine.numeric import safe_float as _safe_float, safe_int as _safe_int
 from app.engine.optimizer import (
     ASSET_NAMES,
     mean_variance_optimize,
@@ -29,18 +30,10 @@ def best_specific_pick(result: RecommendationResult) -> dict | None:
     return None
 
 
-def _safe_float(val: object) -> float:
-    if val is None:
-        return 0.0
-    try:
-        return float(val)
-    except (ValueError, TypeError):
-        return 0.0
-
-
 class Recommender:
     def __init__(self, data_provider: DremioDataProvider) -> None:
         self._dp = data_provider
+        self._metal_roi_cache: pd.DataFrame | None = None
 
     def recommend(self, profile: UserProfile) -> RecommendationResult:
         asset_scores = self._dp.get_asset_scores()
@@ -168,17 +161,19 @@ class Recommender:
             picks.append({
                 "ticker": str(row.get("ticker", "")),
                 "allocation_egp": round(alloc_per_ticker, 0),
-                "composite_score": round(float(row.get("_composite", 0)), 3),
-                "roe": round(float(row.get("roe_proxy", 0)), 4),
-                "dividend_yield": round(float(row.get("dividend_yield", 0)), 4),
-                "momentum_3m": round(float(row.get("momentum_3m", 0)), 4),
-                "vol_90d": round(float(row.get("vol_90d", 0)), 4),
+                "composite_score": round(_safe_float(row.get("_composite")), 3),
+                "roe": round(_safe_float(row.get("roe_proxy")), 4),
+                "dividend_yield": round(_safe_float(row.get("dividend_yield")), 4),
+                "momentum_3m": round(_safe_float(row.get("momentum_3m")), 4),
+                "vol_90d": round(_safe_float(row.get("vol_90d")), 4),
             })
 
         return DrillDown("stocks", picks, f"Invest EGP {stock_budget:,.0f} in stocks — split equally across top 3 picks")
 
     def _drill_metal(self, metal: str) -> DrillDown:
-        roi = self._dp.get_gold_metal_roi()
+        if self._metal_roi_cache is None:
+            self._metal_roi_cache = self._dp.get_gold_metal_roi()
+        roi = self._metal_roi_cache
         if roi.empty:
             return DrillDown(metal, [], f"No {metal} ROI data available.")
         row = roi[roi["metal"].str.lower() == metal]
@@ -190,10 +185,10 @@ class Recommender:
         r = row.iloc[0]
         picks = [{
             "metal": str(r.get("metal", metal)),
-            "roi_1yr_egp": round(float(r.get("roi_1yr_egp", 0)) * 100, 2),
-            "roi_3yr_egp": round(float(r.get("roi_3yr_egp", 0)) * 100, 2),
-            "roi_5yr_egp": round(float(r.get("roi_5yr_egp", 0)) * 100, 2),
-            "latest_price_egp": round(float(r.get("latest_price_egp", 0)), 2),
+            "roi_1yr_egp": round(_safe_float(r.get("roi_1yr_egp")) * 100, 2),
+            "roi_3yr_egp": round(_safe_float(r.get("roi_3yr_egp")) * 100, 2),
+            "roi_5yr_egp": round(_safe_float(r.get("roi_5yr_egp")) * 100, 2),
+            "latest_price_egp": round(_safe_float(r.get("latest_price_egp")), 2),
         }]
         rationale = f"{metal.title()} ROI: 1yr={picks[0]['roi_1yr_egp']}%, 3yr={picks[0]['roi_3yr_egp']}%"
         return DrillDown(metal, picks, rationale)
@@ -211,10 +206,10 @@ class Recommender:
             picks.append({
                 "district": str(row.get("district") or ""),
                 "property_type": str(row.get("property_type") or ""),
-                "area_sqm": float(row.get("area_sqm") or 0),
-                "price_egp": round(float(row.get("price_egp") or 0), 0),
-                "price_per_sqm": round(float(row.get("price_per_sqm") or 0), 0),
-                "bedrooms": int(float(row.get("bedrooms") or 0)),
+                "area_sqm": _safe_float(row.get("area_sqm")),
+                "price_egp": round(_safe_float(row.get("price_egp")), 0),
+                "price_per_sqm": round(_safe_float(row.get("price_per_sqm")), 0),
+                "bedrooms": _safe_int(row.get("bedrooms")),
                 "link": str(row.get("link") or ""),
             })
 

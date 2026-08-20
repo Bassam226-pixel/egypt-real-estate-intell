@@ -20,10 +20,14 @@ if ! command -v docker-compose &> /dev/null; then
     exit 1
 fi
 
+echo "Exporting Gold layer data to Postgres (skip if already exported)..."
+echo ""
+docker-compose --profile export up exporter
+
 echo "Starting Grafana services..."
 echo ""
 
-# Start Grafana and image renderer
+# Start Grafana and image renderer (postgres-grafana starts automatically as a dependency)
 docker-compose up -d grafana grafana-image-renderer
 
 echo ""
@@ -52,15 +56,11 @@ echo "=========================================="
 echo "Setup Complete!"
 echo "=========================================="
 echo ""
-echo "Access Grafana at: http://localhost:3000"
+echo "Access Grafana at: http://localhost:3001"
 echo "Username: admin"
 echo "Password: admin"
 echo ""
-echo "Next steps:"
-echo "1. Open http://localhost:3000 in your browser"
-echo "2. Install the Dremio datasource plugin"
-echo "3. Configure the Dremio connection"
-echo "4. Create your dashboards"
+echo "The PostgreSQL datasource and dashboards are already provisioned automatically."
 echo ""
 echo "To capture screenshots:"
 echo "  python grafana/screenshot_utility.py --action list"

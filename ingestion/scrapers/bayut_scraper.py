@@ -1,6 +1,13 @@
+from pathlib import Path
+
 from scrapling.fetchers import StealthyFetcher
 import json
 import time
+
+# Matches ingestion/loaders/load_re_sales.py's expected data/<site>/<site>_data.json layout.
+DATA_DIR = Path(__file__).resolve().parents[2] / "data" / "bayut"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_FILE = DATA_DIR / "bayut_data.json"
 
 
 def scrape_bayut(page_number=1):
@@ -82,11 +89,11 @@ def main():
 
         time.sleep(3)
 
-    with open('scrapers/bayut/data.json', 'w', encoding='utf-8') as f:
+    with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
         json.dump(all_listings, f, ensure_ascii=False, indent=2)
 
     print(f"\n✅ Done! Scraped {len(all_listings)} listings total.")
-    print("Data saved to scrapers/bayut/data.json")
+    print(f"Data saved to {OUTPUT_FILE}")
 
     if all_listings:
         print("\n--- Sample listing ---")

@@ -12,13 +12,25 @@ from app.config import (
 )
 
 
+_chroma_client_singleton: Any | None = None
+_llm_client_singleton: OpenAI | None = None
+
+
 def _chroma_client() -> Any:
-    return chromadb.HttpClient(host=CHROMA_URL.replace("http://", "").split(":")[0],
-                                port=int(CHROMA_URL.split(":")[-1]))
+    global _chroma_client_singleton
+    if _chroma_client_singleton is None:
+        _chroma_client_singleton = chromadb.HttpClient(
+            host=CHROMA_URL.replace("http://", "").split(":")[0],
+            port=int(CHROMA_URL.split(":")[-1]),
+        )
+    return _chroma_client_singleton
 
 
 def _llm_client() -> OpenAI:
-    return OpenAI(base_url=NVIDIA_BASE_URL, api_key=NVIDIA_API_KEY)
+    global _llm_client_singleton
+    if _llm_client_singleton is None:
+        _llm_client_singleton = OpenAI(base_url=NVIDIA_BASE_URL, api_key=NVIDIA_API_KEY, timeout=30.0)
+    return _llm_client_singleton
 
 
 def _build_recommendation_text(rec: Any) -> str:
@@ -45,13 +57,12 @@ def _build_recommendation_text(rec: Any) -> str:
 
 def answer_question(question: str, n_results: int = 5,
                     recommendation: Any = None) -> str:
-    client = _chroma_client()
     try:
+        client = _chroma_client()
         collection = client.get_collection(CHROMA_COLLECTION)
+        results = collection.query(query_texts=[question], n_results=n_results)
     except Exception:
-        return "No investment data has been ingested yet. Run a recommendation first."
-
-    results = collection.query(query_texts=[question], n_results=n_results)
+        return "No investment data has been ingested yet, or ChromaDB is unreachable. Run a recommendation first."
     documents = results.get("documents", [[]])[0]
     metadatas = results.get("metadatas", [[]])[0]
 
